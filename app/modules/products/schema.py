@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ProductBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    category: str = Field(default="other", max_length=60)
+    origin: str | None = Field(default=None, max_length=120)
+    unit: str = Field(default="kg", max_length=20)
+    price: int = Field(default=0, ge=0)
+    stock: int = Field(default=0, ge=0)
+    description: str | None = None
+    is_active: bool = True
+
+
+class ProductCreate(ProductBase):
+    pass
+
+
+class ProductUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    category: str | None = Field(default=None, max_length=60)
+    origin: str | None = Field(default=None, max_length=120)
+    unit: str | None = Field(default=None, max_length=20)
+    price: int | None = Field(default=None, ge=0)
+    stock: int | None = Field(default=None, ge=0)
+    description: str | None = None
+    is_active: bool | None = None
+
+
+class ProductResponse(ProductBase):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
