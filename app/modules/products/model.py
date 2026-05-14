@@ -16,12 +16,10 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
+from app.db.base import Base
 
-
-class Base(DeclarativeBase):
-    pass
 
 class Product(Base):
     __tablename__ = "products"
