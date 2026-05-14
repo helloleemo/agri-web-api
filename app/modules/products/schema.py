@@ -16,10 +16,8 @@ class ProductBase(BaseModel):
     description: str | None = None
     status_id: int = Field(default=1, ge=1)
 
-
 class ProductCreate(ProductBase):
     pass
-
 
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
@@ -30,7 +28,6 @@ class ProductUpdate(BaseModel):
     stock: int | None = Field(default=None, ge=0)
     description: str | None = None
     status_id: int | None = None
-
 
 class ProductResponse(ProductBase):
     id: uuid.UUID

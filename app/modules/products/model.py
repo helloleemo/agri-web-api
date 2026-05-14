@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -19,6 +20,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.modules.status.model import Status
 
 from db.base import Base
+
+if TYPE_CHECKING:
+    from app.modules.orders.model import OrderItem
 
 
 class Product(Base):
@@ -44,6 +48,7 @@ class Product(Base):
 
     status_id: Mapped[int] = mapped_column(ForeignKey("status.id"), nullable=False, default=1)
     status: Mapped["Status"] = relationship("Status")
+    order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
 
 
     created_at: Mapped[datetime] = mapped_column(
