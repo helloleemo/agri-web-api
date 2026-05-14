@@ -18,6 +18,7 @@ class OrderItemCreate(OrderItemBase):
 
 class OrderItemUpdate(BaseModel):
 	product_id: uuid.UUID | None = None
+	product_name: str | None = None
 	quantity: int | None = Field(default=None, ge=1)
 	status_id: int | None = Field(default=None, ge=1)
 
@@ -25,6 +26,7 @@ class OrderItemUpdate(BaseModel):
 class OrderItemResponse(OrderItemBase):
 	id: uuid.UUID
 	order_id: uuid.UUID
+	product_name: str | None = None
 
 	model_config = ConfigDict(from_attributes=True)
 

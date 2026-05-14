@@ -8,6 +8,10 @@ from app.modules.common.schema import ApiResponse
 from app.modules.products import service
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
 
+from app.modules.common.response import ok
+from app.modules.common.response import created
+from app.modules.common.response import deleted
+from app.modules.common.errors import raise_not_found
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -18,19 +22,12 @@ def list_products(
     db: Session = Depends(get_db)
 ):
     products = service.list_products(db, skip=skip, limit=limit)
-    return ApiResponse[list[ProductResponse]](
-        success=True,
-        message="products fetched",
-        data=products
-    )
+    return ok(products, "products fetched")
 
 @router.get("/{product_id}", response_model=ApiResponse[ProductResponse])
 def get_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
     product = service.get_product(db, product_id)
     if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    return ApiResponse[ProductResponse](
-        success=True,
-        message="product fetched",
-        data=product
-    )
+        raise_not_found("PRODUCT_NOT_FOUND", "Product not found")
+
+    return ok(product, "product fetched")

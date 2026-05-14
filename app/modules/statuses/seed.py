@@ -1,6 +1,6 @@
 
 from sqlalchemy.orm import Session
-from app.modules.status.model import Status
+from app.modules.statuses.model import Status
 
 def seed_statuses(db: Session) -> None:
     statuses = [

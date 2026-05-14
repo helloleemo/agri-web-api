@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from db.base import Base
+from app.db.base import Base
 from sqlalchemy import ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 if TYPE_CHECKING:
     from app.modules.orders.model import Order
     from app.modules.roles.model import Role
-    from app.modules.status.model import Status
+    from app.modules.statuses.model import Status
 
 
 class User(Base):
@@ -36,7 +36,7 @@ class User(Base):
         nullable=False,
     )
     status_id: Mapped[int] = mapped_column(
-        ForeignKey("status.id"),
+        ForeignKey("statuses.id"),
         nullable=False,
         default=1,
     )

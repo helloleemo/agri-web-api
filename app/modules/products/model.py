@@ -15,8 +15,11 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from db.base import Base
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from app.db.base import Base
+from app.modules.statuses.model import Status
+
+
 if TYPE_CHECKING:
     from app.modules.orders.model import OrderItem
 
@@ -36,13 +39,13 @@ class Product(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     category: Mapped[str] = mapped_column(String(60), nullable=False, default="other")
-    origin: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    origin: Mapped[str] = mapped_column(String(120), nullable=True)
     unit: Mapped[str] = mapped_column(String(20), nullable=False, default="kg")
     price: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
 
-    status_id: Mapped[int] = mapped_column(ForeignKey("status.id"), nullable=False, default=1)
+    status_id: Mapped[int] = mapped_column(ForeignKey("statuses.id"), nullable=False, default=1)
     status: Mapped["Status"] = relationship("Status")
     order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
 

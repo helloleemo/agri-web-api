@@ -4,15 +4,21 @@ from fastapi import FastAPI
 
 from app.db.base import Base
 from app.db.session import engine
+import app.modules.orders.model  # noqa: F401
+import app.modules.products.model  # noqa: F401
+import app.modules.roles.model  # noqa: F401
+import app.modules.statuses.model  # noqa: F401
+import app.modules.users.model  # noqa: F401
 from app.modules.products.router import router as products_router
+from app.modules.users.router import router as users_router
+from app.modules.orders.router import router as orders_router
+from app.modules.common.exception_handlers import register_exception_handlers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 啟動時：建立所有資料表（開發期用，正式環境換 Alembic）
     Base.metadata.create_all(bind=engine)
     yield
-    # 關閉時：可以在這裡加清理邏輯
 
 
 app = FastAPI(
@@ -22,7 +28,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+register_exception_handlers(app)
 app.include_router(products_router)
+app.include_router(users_router)
+app.include_router(orders_router)
 
 
 @app.get("/health", tags=["Health"])

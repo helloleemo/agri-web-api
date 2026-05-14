@@ -7,7 +7,7 @@ from app.db.session import get_db
 from app.modules.common.schema import ApiResponse
 from app.modules.orders import service
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
-
+from app.modules.common.response import created, deleted, ok
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -19,11 +19,7 @@ def list_orders(
 	db: Session = Depends(get_db),
 ):
 	orders = service.list_orders(db, skip=skip, limit=limit)
-	return ApiResponse[list[OrderResponse]](
-		success=True,
-		message="orders fetched",
-		data=orders,
-	)
+	return ok(orders, "orders fetched")
 
 
 @router.get("/{order_id}", response_model=ApiResponse[OrderResponse])

@@ -6,11 +6,11 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, fu
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from db.base import Base
+from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.modules.products.model import Product
-    from app.modules.status.model import Status
+    from app.modules.statuses.model import Status
     from app.modules.users.model import User
 
 
@@ -24,7 +24,7 @@ class Order(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    status_id: Mapped[int] = mapped_column(ForeignKey("status.id"), nullable=False, default=1)
+    status_id: Mapped[int] = mapped_column(ForeignKey("statuses.id"), nullable=False, default=1)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -60,7 +60,7 @@ class OrderItem(Base):
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    status_id: Mapped[int] = mapped_column(ForeignKey("status.id"), nullable=False, default=1)
+    status_id: Mapped[int] = mapped_column(ForeignKey("statuses.id"), nullable=False, default=1)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
     product: Mapped["Product"] = relationship("Product", back_populates="order_items")
