@@ -1,9 +1,10 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.common.messages import ProductMessages
 from app.modules.common.schema import ApiResponse
 from app.modules.products import service
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
@@ -22,7 +23,7 @@ def list_products(
     db: Session = Depends(get_db)
 ):
     products = service.list_products(db, skip=skip, limit=limit)
-    return ok(products, "products fetched")
+    return ok(products, ProductMessages.LIST)
 
 @router.get("/{product_id}", response_model=ApiResponse[ProductResponse])
 def get_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
@@ -30,4 +31,4 @@ def get_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
     if not product:
         raise_not_found("PRODUCT_NOT_FOUND", "Product not found")
 
-    return ok(product, "product fetched")
+    return ok(product, ProductMessages.GET)

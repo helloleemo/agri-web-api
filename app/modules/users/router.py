@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.common.errors import raise_not_found
+from app.modules.common.messages import UserMessages
 from app.modules.common.response import created, deleted, ok
 from app.modules.common.schema import ApiResponse
 from app.modules.users import service
@@ -21,7 +22,7 @@ def list_users(
 	db: Session = Depends(get_db),
 ):
 	users = service.list_users(db, skip=skip, limit=limit)
-	return ok(users, "users fetched")
+	return ok(users, UserMessages.LIST)
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
@@ -30,13 +31,13 @@ def get_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	if not user:
 		raise_not_found("USER_NOT_FOUND", "User not found")
 
-	return ok(user, "user fetched")
+	return ok(user, UserMessages.GET)
 
 
 @router.post("", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
 	user = service.create_user(db, payload)
-	return created(user, "user created")
+	return created(user, UserMessages.CREATE)
 
 
 @router.patch("/{user_id}", response_model=ApiResponse[UserResponse])
@@ -45,7 +46,7 @@ def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(g
 	if not user:
 		raise_not_found("USER_NOT_FOUND", "User not found")
 
-	return ok(user, "user updated")
+	return ok(user, UserMessages.UPDATE)
 
 
 @router.delete("/{user_id}", response_model=ApiResponse[dict[str, str]])
@@ -54,4 +55,4 @@ def delete_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	if not is_deleted:
 		raise_not_found("USER_NOT_FOUND", "User not found")
 
-	return deleted(str(user_id), "user deleted")
+	return deleted(str(user_id), UserMessages.DELETE)

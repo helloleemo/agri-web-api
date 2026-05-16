@@ -2,8 +2,11 @@ from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import AppError
 from app.modules.common.schema import ApiResponse, ErrorPayload
+
 
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
@@ -30,3 +33,13 @@ def register_exception_handlers(app: FastAPI) -> None:
             err = ErrorPayload(code=f"HTTP_{exc.status_code}", detail=str(exc.detail))
         body = ApiResponse[None](success=False, message="request failed", data=None, error=err)
         return JSONResponse(status_code=exc.status_code, content=body.model_dump())
+
+    @app.exception_handler(Exception)
+    async def handle_unexpected_error(request: Request, exc: Exception):
+        body = ApiResponse[None](
+            success=False,
+            message="request failed",
+            data=None,
+            error=ErrorPayload(code=ErrorCode.INTERNAL_SERVER_ERROR, detail="Unexpected server error"),
+        )
+        return JSONResponse(status_code=500, content=body.model_dump())
