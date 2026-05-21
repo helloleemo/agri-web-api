@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 
@@ -10,9 +11,16 @@ import app.modules.roles.model  # noqa: F401
 import app.modules.statuses.model  # noqa: F401
 import app.modules.users.model  # noqa: F401
 from app.modules.products.router import router as products_router
+from app.modules.auth.router import router as auth_router 
 from app.modules.users.router import router as users_router
 from app.modules.orders.router import router as orders_router
 from app.modules.common.exception_handlers import register_exception_handlers
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 
 @asynccontextmanager
@@ -29,6 +37,7 @@ app = FastAPI(
 )
 
 register_exception_handlers(app)
+app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(users_router)
 app.include_router(orders_router)

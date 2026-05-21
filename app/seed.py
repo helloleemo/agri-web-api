@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 
 from app.db.session import SessionLocal
+from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_STAFF
 from app.modules.statuses.model import Status
 from app.modules.roles.model import Role
 from app.modules.users.model import User
@@ -18,34 +19,52 @@ from app.modules.orders.model import Order, OrderItem
 
 
 def seed_statuses(db):
-    if db.query(Status).count() > 0:
-        print("  [跳過] statuses 已有資料")
-        return
-
-    statuses = [
-        # 所有狀態
-        Status(code=1, name="enabled",    category="general"),
-        Status(code=2, name="disabled",      category="general"),
-        Status(code=3, name="deleted",      category="general"),
+    status_definitions = [
+        {"code": 1, "name": "enabled"},
+        {"code": 2, "name": "disabled"},
+        {"code": 3, "name": "deleted"},
     ]
-    db.add_all(statuses)
+
+    created_count = 0
+    for item in status_definitions:
+        status = db.query(Status).filter_by(code=item["code"]).first()
+        if status:
+            status.name = item["name"]
+            continue
+
+        db.add(Status(**item))
+        created_count += 1
+
     db.flush()
-    print(f"  [完成] 新增 {len(statuses)} 筆 statuses")
+    if created_count == 0:
+        print("  [跳過] statuses 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 statuses")
 
 
 def seed_roles(db):
-    if db.query(Role).count() > 0:
-        print("  [跳過] roles 已有資料")
-        return
-
-    roles = [
-        Role(id=uuid.uuid4(), name="admin",    code=1),
-        Role(id=uuid.uuid4(), name="staff",    code=2),
-        Role(id=uuid.uuid4(), name="customer", code=3),
+    role_definitions = [
+        {"name": "admin", "code": ROLE_ADMIN},
+        {"name": "staff", "code": ROLE_STAFF},
+        {"name": "customer", "code": ROLE_CUSTOMER},
     ]
-    db.add_all(roles)
+
+    created_count = 0
+    for item in role_definitions:
+        role = db.query(Role).filter_by(code=item["code"]).first()
+        if role:
+            if role.name != item["name"]:
+                role.name = item["name"]
+            continue
+
+        db.add(Role(id=uuid.uuid4(), name=item["name"], code=item["code"]))
+        created_count += 1
+
     db.flush()
-    print(f"  [完成] 新增 {len(roles)} 筆 roles")
+    if created_count == 0:
+        print("  [跳過] roles 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 roles")
 
 
 def seed_users(db):
@@ -53,7 +72,7 @@ def seed_users(db):
         print("  [跳過] users 已有資料")
         return
 
-    admin_role = db.query(Role).filter_by(code=1).first()
+    admin_role = db.query(Role).filter_by(code=ROLE_ADMIN).first()
     active_status = db.query(Status).filter_by(code=1).first()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 

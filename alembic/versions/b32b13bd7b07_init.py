@@ -32,14 +32,12 @@ def upgrade() -> None:
     sa.UniqueConstraint('name')
     )
     op.create_table('statuses',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('code', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
-    sa.Column('category', sa.String(length=30), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code')
     )
-    op.create_index(op.f('ix_statuses_category'), 'statuses', ['category'], unique=False)
     op.create_table('products',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(length=120), nullable=False),
@@ -49,7 +47,7 @@ def upgrade() -> None:
     sa.Column('price', sa.Integer(), nullable=False),
     sa.Column('stock', sa.Integer(), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('status_id', sa.Integer(), nullable=False),
+    sa.Column('status_id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.CheckConstraint('price >= 0', name='ck_products_price_non_negative'),
@@ -67,7 +65,7 @@ def upgrade() -> None:
     sa.Column('user_name', sa.String(length=20), nullable=False),
     sa.Column('password_hash', sa.String(length=200), nullable=False),
     sa.Column('role_id', sa.UUID(), nullable=False),
-    sa.Column('status_id', sa.Integer(), nullable=False),
+    sa.Column('status_id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.String(length=20), nullable=False),
     sa.Column('updated_at', sa.String(length=20), nullable=False),
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
@@ -81,7 +79,7 @@ def upgrade() -> None:
     op.create_table('orders',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('status_id', sa.Integer(), nullable=False),
+    sa.Column('status_id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['status_id'], ['statuses.id'], ),
@@ -96,7 +94,7 @@ def upgrade() -> None:
     sa.Column('order_id', sa.UUID(), nullable=False),
     sa.Column('product_id', sa.UUID(), nullable=False),
     sa.Column('quantity', sa.Integer(), nullable=False),
-    sa.Column('status_id', sa.Integer(), nullable=False),
+    sa.Column('status_id', sa.UUID(), nullable=False),
     sa.CheckConstraint('quantity >= 1', name='ch_order_items_quantity_positive'),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
@@ -129,7 +127,6 @@ def downgrade() -> None:
     op.drop_index('idx_products_created_at', table_name='products')
     op.drop_index('idx_products_category', table_name='products')
     op.drop_table('products')
-    op.drop_index(op.f('ix_statuses_category'), table_name='statuses')
     op.drop_table('statuses')
     op.drop_table('roles')
     # ### end Alembic commands ###

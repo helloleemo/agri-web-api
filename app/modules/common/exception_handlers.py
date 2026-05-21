@@ -1,4 +1,5 @@
 from typing import Any, cast
+import logging
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -6,6 +7,8 @@ from fastapi.responses import JSONResponse
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import AppError
 from app.modules.common.schema import ApiResponse, ErrorPayload
+
+logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -36,10 +39,11 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception):
+        logger.error(f"Unexpected error: {exc}", exc_info=True)
         body = ApiResponse[None](
             success=False,
             message="request failed",
             data=None,
-            error=ErrorPayload(code=ErrorCode.INTERNAL_SERVER_ERROR, detail="Unexpected server error"),
+            error=ErrorPayload(code=ErrorCode.INTERNAL_SERVER_ERROR, detail=str(exc)),
         )
         return JSONResponse(status_code=500, content=body.model_dump())

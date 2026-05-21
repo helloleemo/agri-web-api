@@ -44,8 +44,10 @@ class Product(Base):
     price: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     description: Mapped[str] = mapped_column(Text, nullable=True)
+    image:Mapped[str] = mapped_column(String(300), nullable=True)
+    image_group:Mapped[list[str]] = mapped_column(Text, nullable=True)
 
-    status_id: Mapped[int] = mapped_column(ForeignKey("statuses.id"), nullable=False, default=1)
+    status_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("statuses.id"), nullable=False)
     status: Mapped["Status"] = relationship("Status")
     order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
 

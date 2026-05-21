@@ -1,12 +1,14 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_STAFF
 from app.modules.roles.model import Role
 
 def seed_roles(db:Session):
     roles = [
-        {"name": "admin", "code": 1},
-        {"name": "customer", "code": 2},
+        {"name": "admin", "code": ROLE_ADMIN},
+        {"name": "staff", "code": ROLE_STAFF},
+        {"name": "customer", "code": ROLE_CUSTOMER},
     ]
 
     for item in roles:

@@ -4,16 +4,21 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.modules.common.errors import raise_not_found
+from app.modules.auth.deps import require_roles
+from app.modules.common.errors import raise_not_found_user
 from app.modules.common.messages import UserMessages
 from app.modules.common.response import created, deleted, ok
 from app.modules.common.schema import ApiResponse
+from app.modules.roles.constants import ROLE_ADMIN
 from app.modules.users import service
 from app.modules.users.schema import UserCreate, UserResponse, UserUpdate
 
 
-router = APIRouter(prefix="/users", tags=["Users"])
-
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+	dependencies=[Depends(require_roles([ROLE_ADMIN]))],
+)
 
 @router.get("", response_model=ApiResponse[list[UserResponse]])
 def list_users(
@@ -29,7 +34,7 @@ def list_users(
 def get_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	user = service.get_user_by_id(db, user_id)
 	if not user:
-		raise_not_found("USER_NOT_FOUND", "User not found")
+		raise_not_found_user(str(user_id))
 
 	return ok(user, UserMessages.GET)
 
@@ -44,7 +49,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
 def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(get_db)):
 	user = service.update_user(db, user_id, payload)
 	if not user:
-		raise_not_found("USER_NOT_FOUND", "User not found")
+		raise_not_found_user(str(user_id))
 
 	return ok(user, UserMessages.UPDATE)
 
@@ -53,6 +58,6 @@ def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(g
 def delete_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	is_deleted = service.delete_user(db, user_id)
 	if not is_deleted:
-		raise_not_found("USER_NOT_FOUND", "User not found")
+		raise_not_found_user(str(user_id))
 
 	return deleted(str(user_id), UserMessages.DELETE)

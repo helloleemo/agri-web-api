@@ -35,10 +35,10 @@ class User(Base):
         ForeignKey("roles.id"),
         nullable=False,
     )
-    status_id: Mapped[int] = mapped_column(
+    status_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("statuses.id"),
         nullable=False,
-        default=1,
     )
 
     created_at: Mapped[str] = mapped_column(String(20), nullable=False)
