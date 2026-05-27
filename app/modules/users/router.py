@@ -20,7 +20,7 @@ router = APIRouter(
 	dependencies=[Depends(require_roles([ROLE_ADMIN]))],
 )
 
-@router.get("", response_model=ApiResponse[list[UserResponse]])
+@router.get("", response_model=ApiResponse[list[UserResponse]], response_model_exclude_none=True)
 def list_users(
 	skip: int = Query(0, ge=0),
 	limit: int = Query(10, ge=1),
@@ -30,7 +30,7 @@ def list_users(
 	return ok(users, UserMessages.LIST)
 
 
-@router.get("/{user_id}", response_model=ApiResponse[UserResponse])
+@router.get("/{user_id}", response_model=ApiResponse[UserResponse], response_model_exclude_none=True)
 def get_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	user = service.get_user_by_id(db, user_id)
 	if not user:
@@ -39,13 +39,13 @@ def get_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	return ok(user, UserMessages.GET)
 
 
-@router.post("", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED, response_model_exclude_none=True)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
 	user = service.create_user(db, payload)
 	return created(user, UserMessages.CREATE)
 
 
-@router.patch("/{user_id}", response_model=ApiResponse[UserResponse])
+@router.patch("/{user_id}", response_model=ApiResponse[UserResponse], response_model_exclude_none=True)
 def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(get_db)):
 	user = service.update_user(db, user_id, payload)
 	if not user:
@@ -54,7 +54,7 @@ def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(g
 	return ok(user, UserMessages.UPDATE)
 
 
-@router.delete("/{user_id}", response_model=ApiResponse[dict[str, str]])
+@router.delete("/{user_id}", response_model=ApiResponse[dict[str, str]], response_model_exclude_none=True)
 def delete_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	is_deleted = service.delete_user(db, user_id)
 	if not is_deleted:

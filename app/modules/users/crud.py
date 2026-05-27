@@ -3,6 +3,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.statuses.constants import STATUS_CODE_DELETED, STATUS_CODE_ENABLED

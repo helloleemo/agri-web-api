@@ -4,12 +4,9 @@ from pydantic.generics import GenericModel
 
 T = TypeVar("T")
 
-class ErrorPayload(BaseModel):
-    code: str
-    detail: str
-
 class ApiResponse(GenericModel, Generic[T]):
     success: bool
     message: str
     data: T | None = None
-    error: ErrorPayload | None = None
+    code: str | None = None
+    detail: str | None = None

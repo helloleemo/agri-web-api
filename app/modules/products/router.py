@@ -22,7 +22,7 @@ router = APIRouter(
     dependencies=[Depends(require_roles([ROLE_ADMIN, ROLE_STAFF]))],
 )
 
-@router.get("", response_model=ApiResponse[list[ProductResponse]])
+@router.get("", response_model=ApiResponse[list[ProductResponse]], response_model_exclude_none=True)
 def list_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1),
@@ -31,7 +31,7 @@ def list_products(
     products = service.list_products(db, skip=skip, limit=limit)
     return ok(products, ProductMessages.LIST)
 
-@router.get("/{product_id}", response_model=ApiResponse[ProductResponse])
+@router.get("/{product_id}", response_model=ApiResponse[ProductResponse], response_model_exclude_none=True)
 def get_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
     product = service.get_product(db, product_id)
     if not product:

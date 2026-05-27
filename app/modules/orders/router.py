@@ -17,7 +17,7 @@ from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_STAFF
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
-@router.get("", response_model=ApiResponse[list[OrderResponse]])
+@router.get("", response_model=ApiResponse[list[OrderResponse]], response_model_exclude_none=True)
 def list_orders(
 	skip: int = Query(0, ge=0),
 	limit: int = Query(10, ge=1),
@@ -28,7 +28,7 @@ def list_orders(
 	return ok(orders, OrderMessages.LIST)
 
 
-@router.get("/{order_id}", response_model=ApiResponse[OrderResponse])
+@router.get("/{order_id}", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)
 def get_order(
 	order_id: uuid.UUID,
 	auth: AuthUser = Depends(require_roles([ROLE_ADMIN, ROLE_STAFF])),
@@ -41,7 +41,7 @@ def get_order(
 	return ok(order, OrderMessages.GET)
 
 
-@router.post("", response_model=ApiResponse[OrderResponse], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ApiResponse[OrderResponse], status_code=status.HTTP_201_CREATED, response_model_exclude_none=True)
 def create_order(
 	payload: OrderCreate,
 	auth: AuthUser = Depends(get_auth_context),
@@ -54,7 +54,7 @@ def create_order(
 	return created(order, OrderMessages.CREATE)
 
 
-@router.patch("/{order_id}", response_model=ApiResponse[OrderResponse])
+@router.patch("/{order_id}", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)
 def update_order(
 	order_id: uuid.UUID,
 	payload: OrderUpdate,
@@ -68,7 +68,7 @@ def update_order(
 	return ok(order, OrderMessages.UPDATE)
 
 
-@router.delete("/{order_id}", response_model=ApiResponse[dict[str, str]])
+@router.delete("/{order_id}", response_model=ApiResponse[dict[str, str]], response_model_exclude_none=True)
 def delete_order(
 	order_id: uuid.UUID,
 	auth: AuthUser = Depends(require_roles([ROLE_ADMIN, ROLE_STAFF])),

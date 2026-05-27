@@ -7,12 +7,12 @@ T = TypeVar("T")
 
 
 def ok(data: T | None = None, message: str = CommonMessages.OK) -> ApiResponse[T | None]:
-    return ApiResponse(success=True, message=message, data=data, error=None)
+    return ApiResponse(success=True, message=message, data=data)
 
 
 def created(data: T | None = None, message: str = CommonMessages.CREATED) -> ApiResponse[T | None]:
-    return ApiResponse(success=True, message=message, data=data, error=None)
+    return ApiResponse(success=True, message=message, data=data)
 
 
 def deleted(resource_id: str, message: str = CommonMessages.DELETED) -> ApiResponse[dict[str, str]]:
-    return ApiResponse(success=True, message=message, data={"id": resource_id}, error=None)
+    return ApiResponse(success=True, message=message, data={"id": resource_id})
