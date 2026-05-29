@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -14,7 +15,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.modules.statuses.model import Status
@@ -39,13 +40,13 @@ class Product(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     category: Mapped[str] = mapped_column(String(60), nullable=False, default="other")
-    origin: Mapped[str] = mapped_column(String(120), nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(120), nullable=True)
     unit: Mapped[str] = mapped_column(String(20), nullable=False, default="kg")
     price: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    image:Mapped[str] = mapped_column(String(300), nullable=True)
-    image_group:Mapped[list[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image:Mapped[str | None] = mapped_column(String(300), nullable=True)
+    image_group:Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
     status_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("statuses.id"), nullable=False)
     status: Mapped["Status"] = relationship("Status")

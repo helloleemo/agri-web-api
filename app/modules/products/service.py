@@ -22,6 +22,8 @@ def _to_product_response(db: Session, product: Product) -> ProductResponse:
         stock=product.stock,
         description=product.description,
         status_id=status_code,
+        image=product.image,
+        image_group=product.image_group,
         created_at=product.created_at,
         updated_at=product.updated_at,
     )

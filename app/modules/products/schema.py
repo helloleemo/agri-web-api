@@ -15,6 +15,8 @@ class ProductBase(BaseModel):
     stock: int = Field(default=0, ge=0)
     description: str | None = None
     status_id: int = Field(default=1, ge=1)
+    image: str | None = Field(default=None, max_length=500)
+    image_group: list[str] | None = Field(default=None)
 
 class ProductCreate(ProductBase):
     pass
@@ -27,6 +29,8 @@ class ProductUpdate(BaseModel):
     price: int | None = Field(default=None, ge=0)
     stock: int | None = Field(default=None, ge=0)
     description: str | None = None
+    image: str | None = Field(default=None, max_length=500)
+    image_group: list[str] | None = Field(default=None)
     status_id: int | None = None
 
 class ProductResponse(ProductBase):
