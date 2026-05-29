@@ -13,7 +13,7 @@ from app.modules.common.errors import raise_error
 from app.modules.users import crud as users_crud
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 def get_auth_context(
