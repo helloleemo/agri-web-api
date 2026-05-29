@@ -50,8 +50,13 @@ def get_order_by_id(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
 	return _to_order_response(db, order)
 
 
-def list_orders(db: Session, skip: int = 0, limit: int = 10) -> list[OrderResponse]:
-	orders = crud.get_orders(db, skip=skip, limit=limit)
+def list_orders(
+	db: Session,
+	skip: int = 0,
+	limit: int = 10,
+	user_id: uuid.UUID | None = None,
+) -> list[OrderResponse]:
+	orders = crud.get_orders(db, skip=skip, limit=limit, user_id=user_id)
 	return [_to_order_response(db, order) for order in orders]
 
 

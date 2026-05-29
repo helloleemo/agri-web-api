@@ -17,26 +17,38 @@ from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_STAFF
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
-@router.get("", response_model=ApiResponse[list[OrderResponse]], response_model_exclude_none=True)
+
+@router.get("", 
+			response_model=ApiResponse[list[OrderResponse]], 
+			response_model_exclude_none=True,
+		)
 def list_orders(
 	skip: int = Query(0, ge=0),
 	limit: int = Query(10, ge=1),
-	auth: AuthUser = Depends(require_roles([ROLE_ADMIN, ROLE_STAFF])),
+	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
-	orders = service.list_orders(db, skip=skip, limit=limit)
+	user_id = None if auth.role_code in [ROLE_ADMIN, ROLE_STAFF] else auth.id
+	orders = service.list_orders(db, skip=skip, limit=limit, user_id=user_id)
 	return ok(orders, OrderMessages.LIST)
 
 
-@router.get("/{order_id}", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)
+@router.get(
+		"/{order_id}", 
+		response_model=ApiResponse[OrderResponse], 
+		response_model_exclude_none=True,
+	)
 def get_order(
 	order_id: uuid.UUID,
-	auth: AuthUser = Depends(require_roles([ROLE_ADMIN, ROLE_STAFF])),
+	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
 	order = service.get_order_by_id(db, order_id)
 	if not order:
 		raise_not_found_order(str(order_id))
+
+	if auth.role_code not in [ROLE_ADMIN, ROLE_STAFF] and order.user_id != auth.id:
+		raise_error(ErrorCode.FORBIDDEN, detail="You can only view your own orders")
 
 	return ok(order, OrderMessages.GET)
 
@@ -58,9 +70,16 @@ def create_order(
 def update_order(
 	order_id: uuid.UUID,
 	payload: OrderUpdate,
-	auth: AuthUser = Depends(require_roles([ROLE_ADMIN, ROLE_STAFF])),
+	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
+	existing = service.get_order_by_id(db, order_id)
+	if not existing:
+		raise_not_found_order(str(order_id))
+
+	if auth.role_code not in [ROLE_ADMIN, ROLE_STAFF] and existing.user_id != auth.id:
+		raise_error(ErrorCode.FORBIDDEN, detail="You can only update your own orders")
+
 	order = service.update_order(db, order_id, payload)
 	if not order:
 		raise_not_found_order(str(order_id))
@@ -71,9 +90,16 @@ def update_order(
 @router.delete("/{order_id}", response_model=ApiResponse[dict[str, str]], response_model_exclude_none=True)
 def delete_order(
 	order_id: uuid.UUID,
-	auth: AuthUser = Depends(require_roles([ROLE_ADMIN, ROLE_STAFF])),
+	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
+	existing = service.get_order_by_id(db, order_id)
+	if not existing:
+		raise_not_found_order(str(order_id))
+
+	if auth.role_code not in [ROLE_ADMIN, ROLE_STAFF] and existing.user_id != auth.id:
+		raise_error(ErrorCode.FORBIDDEN, detail="You can only delete your own orders")
+
 	is_deleted = service.delete_order(db, order_id)
 	if not is_deleted:
 		raise_not_found_order(str(order_id))

@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 
 from app.db.session import SessionLocal
-from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_STAFF
+from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_MEMBER, ROLE_STAFF
 from app.modules.statuses.model import Status
 from app.modules.roles.model import Role
 from app.modules.users.model import User
@@ -46,6 +46,7 @@ def seed_roles(db):
     role_definitions = [
         {"name": "admin", "code": ROLE_ADMIN},
         {"name": "staff", "code": ROLE_STAFF},
+        {"name": "member", "code": ROLE_MEMBER},
         {"name": "customer", "code": ROLE_CUSTOMER},
     ]
 

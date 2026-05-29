@@ -3,17 +3,22 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.auth import service
-from app.modules.auth.deps import AuthUser, get_auth_context
+from app.modules.auth.deps import AuthUser, get_auth_context, require_roles
 from app.modules.auth.schema import LoginRequest, LoginResponse, RegisterRequest
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
 from app.modules.common.response import created, ok
 from app.modules.common.schema import ApiResponse
+from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_MEMBER, ROLE_MEMBER, ROLE_STAFF
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/login", response_model=ApiResponse[LoginResponse], response_model_exclude_none=True)
+@router.post(
+        "/login", 
+        response_model=ApiResponse[LoginResponse], 
+        response_model_exclude_none=True
+    )
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = service.authenticate_user(db, payload.email, payload.password)
     if not user:
@@ -45,7 +50,12 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/me", response_model=ApiResponse[AuthUser], response_model_exclude_none=True)
+@router.get(
+        "/me", 
+        response_model=ApiResponse[AuthUser], 
+        response_model_exclude_none=True,
+        dependencies=[Depends(require_roles([ROLE_ADMIN, ROLE_STAFF, ROLE_MEMBER, ROLE_CUSTOMER]))],
+    )
 def me(auth: AuthUser = Depends(get_auth_context)):
     return ok(auth, "profile fetched")
 

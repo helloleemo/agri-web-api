@@ -23,11 +23,18 @@ def get_order_by_id(db: Session, order_id: uuid.UUID) -> Order | None:
 	return db.scalar(stmt)
 
 
-def get_orders(db: Session, skip: int = 0, limit: int = 10) -> list[Order]:
+def get_orders(
+	db: Session,
+	skip: int = 0,
+	limit: int = 10,
+	user_id: uuid.UUID | None = None,
+) -> list[Order]:
 	deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
 	conditions = []
 	if deleted_status_id is not None:
 		conditions.append(Order.status_id != deleted_status_id)
+	if user_id is not None:
+		conditions.append(Order.user_id == user_id)
 
 	stmt = (
 		select(Order)
