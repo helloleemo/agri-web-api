@@ -30,6 +30,7 @@ config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 from app.db.base import Base
 
 import app.modules.products.model
+import app.modules.images.model
 import app.modules.users.model
 import app.modules.orders.model
 import app.modules.roles.model
