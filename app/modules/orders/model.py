@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,29 +23,18 @@ class Order(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now(),onupdate=func.now())
+
+    # Foreign keys
+    status_code: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("statuses.code"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    status_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("statuses.id"), nullable=False)
+    # user_name: Mapped[str] = mapped_column(String(20), ForeignKey("users.user_name"), nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-    )
-
-    status: Mapped["Status"] = relationship("Status")
+    # relationships
     user: Mapped["User"] = relationship("User", back_populates="orders")
-    items: Mapped[list["OrderItem"]] = relationship(
-        "OrderItem",
-        back_populates="order",
-        cascade="all, delete-orphan",
-    )
-
+    items: Mapped[list["OrderItem"]] = relationship("OrderItem",back_populates="order",cascade="all, delete-orphan")
+    
 
 class OrderItem(Base):
     __tablename__ = "order_items"

@@ -1,3 +1,8 @@
-STATUS_CODE_ENABLED = 1
-STATUS_CODE_DISABLED = 2
-STATUS_CODE_DELETED = 3
+
+from enum import Enum
+
+
+class StatusCode(Enum):
+    ENABLED = 1
+    DISABLED = 2
+    DELETED = 3

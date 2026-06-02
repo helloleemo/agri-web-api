@@ -17,7 +17,6 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from app.db.base import Base
-from app.modules.statuses.model import Status
 
 
 if TYPE_CHECKING:
@@ -32,7 +31,7 @@ class Product(Base):
         CheckConstraint("stock >= 0", name="ck_products_stock_non_negative"),
         Index("idx_products_name", "name"),
         Index("idx_products_category", "category"),
-        Index("idx_products_status_id", "status_id"),
+        Index("idx_products_status_code", "status_code"),
         Index("idx_products_created_at", "created_at"),
     )
 
@@ -46,20 +45,11 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image:Mapped[str | None] = mapped_column(String(300), nullable=True)
     image_group:Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now(),onupdate=func.now())
 
-    status_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("statuses.id"), nullable=False)
-    status: Mapped["Status"] = relationship("Status")
+    # Foreign keys
+    status_code:Mapped[int] = mapped_column(Integer,ForeignKey("statuses.code"),nullable=False)
+
+    # relationships
     order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
-
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-    )

@@ -27,7 +27,7 @@ class ImageAsset(Base):
     storage_key: Mapped[str] = mapped_column(String(300), nullable=False, unique=True)
     mime_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    base64_data: Mapped[str | None] = mapped_column(String(1000), nullable=True)  
+    # base64_data: Mapped[str | None] = mapped_column(String(1000), nullable=True)  
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

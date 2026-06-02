@@ -5,8 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductUpdate
-from app.modules.statuses.constants import STATUS_CODE_DELETED, STATUS_CODE_ENABLED
-from app.modules.statuses.utils import get_status_id_by_code
+from app.modules.statuses.constants import StatusCode
 
 # 'create_product()
 # get_product_by_id()
@@ -15,33 +14,27 @@ from app.modules.statuses.utils import get_status_id_by_code
 # delete_product()'
 
 def get_product_by_id(db:Session, product_id:uuid.UUID) -> Product | None:
-    deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
-    conditions = [Product.id == product_id]
-    if deleted_status_id is not None:
-        conditions.append(Product.status_id != deleted_status_id)
-
-    stmt = select(Product).where(*conditions)
+    stmt = select(Product).where(
+        Product.id == product_id,
+        Product.status_code != StatusCode.DELETED.value,
+    )
     return db.scalar(stmt)
 
 
 def get_products(db: Session, skip: int = 0, limit: int = 10) -> list[Product]:
-    deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
-    conditions = []
-    if deleted_status_id is not None:
-        conditions.append(Product.status_id != deleted_status_id)
-
-    stmt = select(Product).where(*conditions).offset(skip).limit(limit)
+    stmt = (
+        select(Product)
+        .where(Product.status_code != StatusCode.DELETED.value)
+        .offset(skip)
+        .limit(limit)
+    )
     return list(db.scalars(stmt).all())
 
 def create_product(db:Session, product_create:ProductCreate) -> Product:
-    payload = product_create.model_dump()
-    status_code = payload.pop("status_id", STATUS_CODE_ENABLED)
-    status_id = get_status_id_by_code(db, status_code)
-    if status_id is None:
-        raise ValueError(f"Status code {status_code} is not configured")
-    payload["status_id"] = status_id
+    payload = product_create.model_dump()  # object轉換成可操作的dict
 
-    new_product = Product(**payload)
+    new_product = Product(**payload) # **dict展開，會建立新物件
+
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
@@ -53,24 +46,18 @@ def update_product(db:Session, product_id:uuid.UUID, product_update:ProductUpdat
     if not product:
         return None
 
-    payload = product_update.model_dump(exclude_unset=True)
-    if "status_id" in payload:
-        status_id = get_status_id_by_code(db, payload["status_id"])
-        if status_id is None:
-            raise ValueError(f"Status code {payload['status_id']} is not configured")
-        payload["status_id"] = status_id
+    payload = product_update.model_dump(exclude_unset=True) # 只保留有的欄位(部分更新 且沒有的欄位不會被覆蓋)
 
-    for field, value in payload.items():
+    for field, value in payload.items(): # 改「已存在的物件」
         setattr(product, field, value)
 
-    db.commit()
-    db.refresh(product)
-    return product
+    db.commit() # 寫進資料庫
+    db.refresh(product)  # 重新從 DB 載入 product 最新狀態
+    return product # 回傳更新完成後的商品物件
 
-def delete_product(db:Session, product:Product) -> None:
-    deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
-    if deleted_status_id is None:
-        raise ValueError("Deleted status is not configured")
-
-    product.status_id = deleted_status_id
+def delete_product(db:Session, product_id:uuid.UUID) -> None:
+    product = get_product_by_id(db, product_id)
+    if not product:
+        return None
+    product.status_code = StatusCode.DELETED.value
     db.commit()

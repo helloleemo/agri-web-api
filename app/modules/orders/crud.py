@@ -3,22 +3,21 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.statuses.constants import STATUS_CODE_DELETED, STATUS_CODE_ENABLED
-from app.modules.statuses.utils import get_status_id_by_code
 from app.modules.orders.model import Order, OrderItem
 from app.modules.orders.schema import OrderCreate, OrderUpdate
+from app.modules.statuses.constants import StatusCode
+from app.modules.statuses.utils import get_status_id_by_code
 
 
 def get_order_by_id(db: Session, order_id: uuid.UUID) -> Order | None:
-	deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
-	conditions = [Order.id == order_id]
-	if deleted_status_id is not None:
-		conditions.append(Order.status_id != deleted_status_id)
-
 	stmt = (
 		select(Order)
-		.where(*conditions)
-		.options(selectinload(Order.items))
+		.where(
+			Order.id == order_id,
+			Order.status_code != StatusCode.DELETED.value,
+		)
+		.options(selectinload(Order.user))
+		.options(selectinload(Order.items).selectinload(OrderItem.product))
 	)
 	return db.scalar(stmt)
 
@@ -29,7 +28,7 @@ def get_orders(
 	limit: int = 10,
 	user_id: uuid.UUID | None = None,
 ) -> list[Order]:
-	deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
+	deleted_status_id = get_status_id_by_code(db, StatusCode.DELETED.value)
 	conditions = []
 	if deleted_status_id is not None:
 		conditions.append(Order.status_id != deleted_status_id)
@@ -48,7 +47,7 @@ def get_orders(
 
 def create_order(db: Session, order_create: OrderCreate) -> Order:
 	payload = order_create.model_dump(exclude={"items"})
-	order_status_code = payload.pop("status_id", STATUS_CODE_ENABLED)
+	order_status_code = payload.pop("status_id", StatusCode.ENABLED.value)
 	order_status_id = get_status_id_by_code(db, order_status_code)
 	if order_status_id is None:
 		raise ValueError(f"Status code {order_status_code} is not configured")
@@ -60,7 +59,7 @@ def create_order(db: Session, order_create: OrderCreate) -> Order:
 
 	for item_data in order_create.items:
 		item_payload = item_data.model_dump()
-		item_status_code = item_payload.pop("status_id", STATUS_CODE_ENABLED)
+		item_status_code = item_payload.pop("status_id", StatusCode.ENABLED.value)
 		item_status_id = get_status_id_by_code(db, item_status_code)
 		if item_status_id is None:
 			raise ValueError(f"Status code {item_status_code} is not configured")
@@ -92,7 +91,7 @@ def update_order(db: Session, order_id: uuid.UUID, order_update: OrderUpdate) ->
 	if items is not None:
 		new_items: list[OrderItem] = []
 		for item in items:
-			item_status_code = item.get("status_id", STATUS_CODE_ENABLED)
+			item_status_code = item.get("status_id", StatusCode.ENABLED.value)
 			item_status_id = get_status_id_by_code(db, item_status_code)
 			if item_status_id is None:
 				raise ValueError(f"Status code {item_status_code} is not configured")
@@ -106,7 +105,7 @@ def update_order(db: Session, order_id: uuid.UUID, order_update: OrderUpdate) ->
 
 
 def delete_order(db: Session, order: Order) -> None:
-	deleted_status_id = get_status_id_by_code(db, STATUS_CODE_DELETED)
+	deleted_status_id = get_status_id_by_code(db, StatusCode.DELETED.value)
 	if deleted_status_id is None:
 		raise ValueError("Deleted status is not configured")
 

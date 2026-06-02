@@ -20,8 +20,9 @@ def token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user:
         raise_error(ErrorCode.USER_INVALID_CREDENTIALS)
 
-    role_code = service.get_role_code(db, user.role_id)
-    if role_code is None:
+    role_code = user.role_code
+    role_id = service.get_role_id_by_code(db, role_code)
+    if role_id is None:
         raise_error(ErrorCode.UNAUTHORIZED, detail="User role is invalid")
 
     access_token, _ = service.create_access_token({
@@ -39,8 +40,9 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise_error(ErrorCode.USER_INVALID_CREDENTIALS)
 
-    role_code = service.get_role_code(db, user.role_id)
-    if role_code is None:
+    role_code = user.role_code
+    role_id = service.get_role_id_by_code(db, role_code)
+    if role_id is None:
         raise_error(ErrorCode.UNAUTHORIZED, detail="User role is invalid")
 
     token, expires_in = service.create_access_token({
@@ -57,7 +59,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
                 id=user.id,
                 email=user.email,
                 user_name=user.user_name,
-                role_id=user.role_id,
+                role_id=role_id,
                 role_code=role_code,
             ),
         ),
@@ -76,8 +78,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     if not user:
         raise_error(ErrorCode.USER_EMAIL_ALREADY_EXISTS)
 
-    role_code = service.get_role_code(db, user.role_id)
-    if role_code is None:
+    role_code = user.role_code
+    role_id = service.get_role_id_by_code(db, role_code)
+    if role_id is None:
         raise_error(ErrorCode.UNAUTHORIZED, detail="User role is invalid")
 
     token, expires_in = service.create_access_token({
@@ -94,7 +97,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
                 id=user.id,
                 email=user.email,
                 user_name=user.user_name,
-                role_id=user.role_id,
+                role_id=role_id,
                 role_code=role_code,
             ),
         ),

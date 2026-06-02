@@ -9,24 +9,23 @@ from app.modules.common.errors import raise_not_found_user
 from app.modules.common.messages import UserMessages
 from app.modules.common.response import created, deleted, ok
 from app.modules.common.schema import ApiResponse
-from app.modules.roles.constants import ROLE_ADMIN
+from app.modules.common.pagination import Pagination, pagination_dep
 from app.modules.users import service
 from app.modules.users.schema import UserCreate, UserResponse, UserUpdate
-
+from app.modules.roles.constants import RoleCode
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"],
-	dependencies=[Depends(require_roles([ROLE_ADMIN]))],
+	dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value, RoleCode.ROLE_MEMBER.value]))],
 )
 
 @router.get("", response_model=ApiResponse[list[UserResponse]], response_model_exclude_none=True)
 def list_users(
-	skip: int = Query(0, ge=0),
-	limit: int = Query(10, ge=1),
+	pagination: Pagination = Depends(pagination_dep),
 	db: Session = Depends(get_db),
 ):
-	users = service.list_users(db, skip=skip, limit=limit)
+	users = service.list_users(db, skip=pagination.skip, limit=pagination.limit)
 	return ok(users, UserMessages.LIST)
 
 

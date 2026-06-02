@@ -3,10 +3,17 @@ import hashlib
 import uuid
 from sqlalchemy.orm import Session
 
-from app.modules.statuses.utils import get_status_code_by_id
+from app.modules.roles.constants import RoleCode
+from app.modules.statuses.constants import StatusCode
 from app.modules.users import crud
 from app.modules.users.model import User
-from app.modules.users.schema import UserCreate, UserResponse, UserUpdate
+from app.modules.users.schema import (
+	UserCreate,
+	UserOrderItemResponse,
+	UserOrderResponse,
+	UserResponse,
+	UserUpdate,
+)
 
 def _verify_password(plain_password: str, password_hash: str) -> bool:
 	salt, digest = password_hash.split("$")
@@ -15,21 +22,32 @@ def _verify_password(plain_password: str, password_hash: str) -> bool:
 
 
 def _to_user_response(db: Session, user: User) -> UserResponse:
-	status_code = get_status_code_by_id(db, user.status_id)
-	if status_code is None:
-		raise ValueError("User status is invalid")
+	orders = [
+		UserOrderResponse(
+			order_id=order.id,
+			items=[
+				UserOrderItemResponse(
+					product_id=item.product_id,
+					product_name=item.product.name if item.product else None,
+					quantity=item.quantity,
+				)
+				for item in order.items
+			],
+		)
+		for order in user.orders
+	]
 
 	return UserResponse(
 		id=user.id,
 		email=user.email,
 		user_name=user.user_name,
-		role_id=user.role_id,
-		status_id=status_code,
-		created_at=user.created_at,
-		updated_at=user.updated_at,
+		role_code=RoleCode(user.role_code),
+		status_code=StatusCode(user.status_code),
+		orders=orders,
+		created_at= user.created_at,
+		updated_at=user.updated_at
 	)
 
-# ---------------------------------
 
 def create_user(db: Session, data:UserCreate) -> UserResponse:
 	user = crud.create_user(db, data)
@@ -48,15 +66,14 @@ def get_user_by_id(db: Session, user_id: uuid.UUID) -> UserResponse | None:
 
 
 def update_user(db: Session, user_id: uuid.UUID, data: UserUpdate) -> UserResponse | None:
-	user = crud.update_user(db, user_id, data)
-	if not user:
+	updated = crud.update_user(db, user_id, data)
+	if not updated:
 		return None
-	return _to_user_response(db, user)
+	return _to_user_response(db, updated)
 
 
 def authenticate_user(db: Session, email: str, password: str) -> UserResponse | None:
-	users = crud.get_users(db, skip=0, limit=1000)
-	user = next((u for u in users if u.email == email), None)
+	user = crud.get_user_by_email(db, email)
 	
 	if not user or not _verify_password(password, user.password_hash):
 		return None
@@ -66,8 +83,8 @@ def authenticate_user(db: Session, email: str, password: str) -> UserResponse | 
 
 def delete_user(db: Session, user_id: uuid.UUID) -> bool:
 	user = crud.get_user_by_id(db, user_id)
-	if not user:
+	if user is None:
 		return False
 	
-	crud.delete_user(db, user)
+	crud.delete_user(db, user.id)
 	return True

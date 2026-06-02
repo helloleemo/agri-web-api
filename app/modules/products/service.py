@@ -4,14 +4,10 @@ from sqlalchemy.orm import Session
 from app.modules.products import crud
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
-from app.modules.statuses.utils import get_status_code_by_id
+from app.modules.statuses.constants import StatusCode
 
 
 def _to_product_response(db: Session, product: Product) -> ProductResponse:
-    status_code = get_status_code_by_id(db, product.status_id)
-    if status_code is None:
-        raise ValueError("Product status is invalid")
-
     return ProductResponse(
         id=product.id,
         name=product.name,
@@ -21,9 +17,9 @@ def _to_product_response(db: Session, product: Product) -> ProductResponse:
         price=product.price,
         stock=product.stock,
         description=product.description,
-        status_id=status_code,
         image=product.image,
         image_group=product.image_group,
+        status_code=StatusCode(product.status_code),
         created_at=product.created_at,
         updated_at=product.updated_at,
     )
@@ -50,9 +46,6 @@ def update_product(
     product_id: uuid.UUID,
     data: ProductUpdate,
 ) -> ProductResponse | None:
-    product = crud.get_product_by_id(db, product_id)
-    if product is None:
-        return None
     updated = crud.update_product(db, product_id, data)
     if updated is None:
         return None
@@ -63,5 +56,5 @@ def delete_product(db: Session, product_id: uuid.UUID) -> bool:
     product = crud.get_product_by_id(db, product_id)
     if product is None:
         return False
-    crud.delete_product(db, product)
+    crud.delete_product(db, product_id)
     return True

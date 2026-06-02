@@ -1,20 +1,33 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.modules.auth.deps import AuthUser, get_auth_context, require_roles
+from app.modules.auth.deps import AuthUser, get_auth_context
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error, raise_not_found_order
 from app.modules.common.messages import OrderMessages
+from app.modules.common.pagination import Pagination, pagination_dep
 from app.modules.common.response import created, deleted, ok
 from app.modules.common.schema import ApiResponse
 from app.modules.orders import service
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
-from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_STAFF
+from app.modules.roles.constants import RoleCode
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
+
+
+ADMIN_STAFF_ROLE_CODES = {RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value}
+
+
+def _can_manage_all_orders(auth: AuthUser) -> bool:
+	return auth.role_code in ADMIN_STAFF_ROLE_CODES
+
+
+def _ensure_can_access_order(auth: AuthUser, owner_id: uuid.UUID, action: str) -> None:
+	if not _can_manage_all_orders(auth) and owner_id != auth.id:
+		raise_error(ErrorCode.FORBIDDEN, detail=f"You can only {action} your own orders")
 
 
 
@@ -23,13 +36,12 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 			response_model_exclude_none=True,
 		)
 def list_orders(
-	skip: int = Query(0, ge=0),
-	limit: int = Query(10, ge=1),
+	pagination: Pagination = Depends(pagination_dep),
 	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
-	user_id = None if auth.role_code in [ROLE_ADMIN, ROLE_STAFF] else auth.id
-	orders = service.list_orders(db, skip=skip, limit=limit, user_id=user_id)
+	user_id = None if _can_manage_all_orders(auth) else auth.id
+	orders = service.list_orders(db, skip=pagination.skip, limit=pagination.limit, user_id=user_id)
 	return ok(orders, OrderMessages.LIST)
 
 
@@ -47,8 +59,7 @@ def get_order(
 	if not order:
 		raise_not_found_order(str(order_id))
 
-	if auth.role_code not in [ROLE_ADMIN, ROLE_STAFF] and order.user_id != auth.id:
-		raise_error(ErrorCode.FORBIDDEN, detail="You can only view your own orders")
+	_ensure_can_access_order(auth, order.user_id, "view")
 
 	return ok(order, OrderMessages.GET)
 
@@ -59,8 +70,8 @@ def create_order(
 	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
-	if auth.role_code == ROLE_CUSTOMER and payload.user_id != auth.id:
-		raise_error(ErrorCode.FORBIDDEN, detail="Customers can only create their own orders")
+	if not _can_manage_all_orders(auth) and payload.user_id != auth.id:
+		raise_error(ErrorCode.FORBIDDEN, detail="You can only create your own orders")
 
 	order = service.create_order(db, payload)
 	return created(order, OrderMessages.CREATE)
@@ -77,8 +88,7 @@ def update_order(
 	if not existing:
 		raise_not_found_order(str(order_id))
 
-	if auth.role_code not in [ROLE_ADMIN, ROLE_STAFF] and existing.user_id != auth.id:
-		raise_error(ErrorCode.FORBIDDEN, detail="You can only update your own orders")
+	_ensure_can_access_order(auth, existing.user_id, "update")
 
 	order = service.update_order(db, order_id, payload)
 	if not order:
@@ -97,8 +107,7 @@ def delete_order(
 	if not existing:
 		raise_not_found_order(str(order_id))
 
-	if auth.role_code not in [ROLE_ADMIN, ROLE_STAFF] and existing.user_id != auth.id:
-		raise_error(ErrorCode.FORBIDDEN, detail="You can only delete your own orders")
+	_ensure_can_access_order(auth, existing.user_id, "delete")
 
 	is_deleted = service.delete_order(db, order_id)
 	if not is_deleted:

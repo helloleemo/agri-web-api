@@ -35,6 +35,7 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 		created_at=order.created_at,
 		updated_at=order.updated_at,
 		items=items,
+		user_name=getattr(order, "user_name", None),
 	)
 
 

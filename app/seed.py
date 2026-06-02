@@ -10,12 +10,14 @@ import uuid
 from datetime import datetime, timezone
 
 from app.db.session import SessionLocal
-from app.modules.roles.constants import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_MEMBER, ROLE_STAFF
+
 from app.modules.statuses.model import Status
 from app.modules.roles.model import Role
 from app.modules.users.model import User
 from app.modules.products.model import Product
 from app.modules.orders.model import Order, OrderItem  
+from app.modules.roles.constants import RoleCode
+from app.modules.statuses.constants import StatusCode
 
 
 def seed_statuses(db):
@@ -44,10 +46,9 @@ def seed_statuses(db):
 
 def seed_roles(db):
     role_definitions = [
-        {"name": "admin", "code": ROLE_ADMIN},
-        {"name": "staff", "code": ROLE_STAFF},
-        {"name": "member", "code": ROLE_MEMBER},
-        {"name": "customer", "code": ROLE_CUSTOMER},
+        {"name": "admin", "code": RoleCode.ROLE_ADMIN},
+        {"name": "staff", "code": RoleCode.ROLE_STAFF},
+        {"name": "member", "code": RoleCode.ROLE_MEMBER},
     ]
 
     created_count = 0
@@ -73,9 +74,7 @@ def seed_users(db):
         print("  [跳過] users 已有資料")
         return
 
-    admin_role = db.query(Role).filter_by(code=ROLE_ADMIN).first()
-    active_status = db.query(Status).filter_by(code=1).first()
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(timezone.utc)
 
     users = [
         User(
@@ -83,8 +82,8 @@ def seed_users(db):
             email="admin@agri.com",
             user_name="admin",
             password_hash="hashed_password_placeholder",
-            role_id=admin_role.id,
-            status_id=active_status.id,
+            role_code=RoleCode.ROLE_ADMIN.value,
+            status_code=StatusCode.ENABLED.value,
             created_at=now,
             updated_at=now,
         ),
@@ -99,8 +98,6 @@ def seed_products(db):
         print("  [跳過] products 已有資料")
         return
 
-    active_status = db.query(Status).filter_by(code=1).first()
-
     products = [
         Product(
             id=uuid.uuid4(),
@@ -111,7 +108,7 @@ def seed_products(db):
             price=120,
             stock=500,
             description="來自台灣高山的有機蘋果",
-            status_id=active_status.id,
+            status_code=StatusCode.ENABLED.value,
         ),
         Product(
             id=uuid.uuid4(),
@@ -122,7 +119,7 @@ def seed_products(db):
             price=80,
             stock=300,
             description="新鮮有機番茄，無農藥",
-            status_id=active_status.id,
+            status_code=StatusCode.ENABLED.value,
         ),
         Product(
             id=uuid.uuid4(),
@@ -133,7 +130,7 @@ def seed_products(db):
             price=60,
             stock=400,
             description="台南有機地瓜",
-            status_id=active_status.id,
+            status_code=StatusCode.ENABLED.value,
         ),
     ]
     db.add_all(products)

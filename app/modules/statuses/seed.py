@@ -1,13 +1,14 @@
 
 from sqlalchemy.orm import Session
 from app.modules.statuses.model import Status
+from app.modules.statuses.constants import StatusCode
 
 
 def seed_statuses(db: Session) -> None:
     statuses = [
-        {"code": 1, "name": "enabled"},
-        {"code": 2, "name": "disabled"},
-        {"code": 3, "name": "deleted"},
+        {"code": StatusCode.ENABLED, "name": "enabled"},
+        {"code": StatusCode.DISABLED, "name": "disabled"},
+        {"code": StatusCode.DELETED, "name": "deleted"},
     ]
 
     for item in statuses:

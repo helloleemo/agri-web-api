@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -10,6 +11,7 @@ from app.modules.auth import service
 from app.modules.auth.schema import AuthUser
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
+from app.modules.roles.model import Role
 from app.modules.users import crud as users_crud
 
 
@@ -37,15 +39,16 @@ def get_auth_context(
     if not user:
         raise_error(ErrorCode.UNAUTHORIZED, detail="User not found or inactive")
 
-    role_code = service.get_role_code(db, user.role_id)
-    if role_code is None:
+    role_code = user.role_code
+    role_id = db.scalar(select(Role.id).where(Role.code == role_code))
+    if role_id is None:
         raise_error(ErrorCode.UNAUTHORIZED, detail="User role is invalid")
 
     return AuthUser(
         id=user.id,
         email=user.email,
         user_name=user.user_name,
-        role_id=user.role_id,
+        role_id=role_id,
         role_code=role_code,
     )
 

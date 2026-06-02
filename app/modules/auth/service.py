@@ -1,6 +1,7 @@
 import hashlib
 import os
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -8,7 +9,6 @@ from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.roles.constants import ROLE_CUSTOMER
 from app.modules.roles.model import Role
 from app.modules.users import crud as users_crud
 from app.modules.users.model import User
@@ -30,6 +30,11 @@ def get_role_code(db: Session, role_id: Any) -> int | None:
     return db.scalar(stmt)
 
 
+def get_role_id_by_code(db: Session, role_code: int) -> uuid.UUID | None:
+    stmt = select(Role.id).where(Role.code == role_code)
+    return db.scalar(stmt)
+
+
 def register_user(db: Session, email: str, user_name: str, password: str, role_code: int) -> User | None:
     if users_crud.get_user_by_email(db, email):
         logger.warning(f"Registration attempt with existing email: {email}")
@@ -42,7 +47,7 @@ def register_user(db: Session, email: str, user_name: str, password: str, role_c
 
     try:
         from app.modules.users.schema import UserCreate
-        data = UserCreate(email=email, user_name=user_name, password=password, role_id=role.id)
+        data = UserCreate(email=email, user_name=user_name, password=password, role_code=role.code)
         return users_crud.create_user(db, data)
     except Exception as e:
         logger.error(f"Error creating user during registration: {e}", exc_info=True)

@@ -1,5 +1,7 @@
-ROLE_ADMIN = 1
-ROLE_STAFF = 2
-ROLE_MEMBER = 3
-ROLE_CUSTOMER  = 4
+from enum import Enum
+
+class RoleCode(Enum):
+    ROLE_ADMIN = 1
+    ROLE_STAFF = 2
+    ROLE_MEMBER = 3
 
