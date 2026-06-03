@@ -5,21 +5,32 @@ from app.modules.common.pagination import Pagination
 from app.modules.images.schema import ImageResponse
 from app.modules.products import crud
 from app.modules.products.model import Product
-from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
+from app.modules.products.schema import ProductCreate, ProductResponse, ProductUnitResponse, ProductUpdate
 from app.modules.statuses.constants import StatusCode
 
 
 def _to_product_response(db: Session, product: Product) -> ProductResponse:
+    units = sorted(
+        [
+            ProductUnitResponse(
+                unit_id=product_unit.unit_id,
+                unit_name=product_unit.unit.name if product_unit.unit else None,
+                price=product_unit.price,
+                stock=product_unit.stock,
+            )
+            for product_unit in product.product_units
+        ],
+        key=lambda item: (item.unit_name or "", str(item.unit_id)),
+    )
+
     return ProductResponse(
         id=product.id,
         name=product.name,
         category_id=product.category_id,
-        category_name=product.category.name,
+        category_name=product.category.name if product.category else None,
         origin=product.origin,
-        unit=product.unit,
-        price=product.price,
-        stock=product.stock,
         description=product.description,
+        units=units,
         # image=product.image,
         # image_group=product.image_group,
         images=[ImageResponse(

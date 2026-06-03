@@ -15,7 +15,8 @@ from app.modules.statuses.model import Status
 from app.modules.roles.model import Role
 from app.modules.users.model import User
 from app.modules.categories.model import Category
-from app.modules.products.model import Product
+from app.modules.products.model import Product, ProductUnits
+from app.modules.units.model import Unit
 from app.modules.orders.model import Order, OrderItem  
 from app.modules.roles.constants import RoleCode
 from app.modules.statuses.constants import StatusCode
@@ -124,106 +125,171 @@ def seed_categories(db):
         print(f"  [完成] 新增 {created_count} 筆 categories")
 
 
+def seed_units(db):
+    unit_definitions = ["kg", "g", "box", "bag", "pcs"]
+
+    created_count = 0
+    for name in unit_definitions:
+        unit = db.query(Unit).filter_by(name=name).first()
+        if unit:
+            continue
+
+        db.add(Unit(id=uuid.uuid4(), name=name))
+        created_count += 1
+
+    db.flush()
+    if created_count == 0:
+        print("  [跳過] units 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 units")
+
+
 def seed_products(db):
     category_map = {
         category.name: category.id
         for category in db.query(Category).filter(Category.name.in_(["fruit", "vegetable", "grain"]))
     }
+    unit_map = {unit.name: unit.id for unit in db.query(Unit).all()}
 
     required_categories = {"fruit", "vegetable", "grain"}
     if set(category_map.keys()) != required_categories:
         missing = required_categories - set(category_map.keys())
         raise ValueError(f"缺少 category seed: {sorted(missing)}")
 
+    required_units = {"kg", "box", "bag", "pcs"}
+    missing_units = required_units - set(unit_map.keys())
+    if missing_units:
+        raise ValueError(f"缺少 unit seed: {sorted(missing_units)}")
+
     product_definitions = [
         {
             "name": "有機蘋果",
             "category": "fruit",
             "origin": "台灣",
-            "unit": "kg",
             "price": 120,
             "stock": 500,
+            "units": [
+                {"name": "kg", "price": 120, "stock": 500},
+                {"name": "box", "price": 680, "stock": 45},
+                {"name": "pcs", "price": 28, "stock": 1200},
+            ],
             "description": "來自台灣高山的有機蘋果",
         },
         {
             "name": "有機香蕉",
             "category": "fruit",
             "origin": "台灣",
-            "unit": "kg",
             "price": 95,
             "stock": 420,
+            "units": [
+                {"name": "kg", "price": 95, "stock": 420},
+                {"name": "box", "price": 520, "stock": 38},
+                {"name": "bag", "price": 155, "stock": 160},
+            ],
             "description": "香甜軟糯的有機香蕉",
         },
         {
             "name": "有機芭樂",
             "category": "fruit",
             "origin": "台灣",
-            "unit": "kg",
             "price": 110,
             "stock": 260,
+            "units": [
+                {"name": "kg", "price": 110, "stock": 260},
+                {"name": "box", "price": 610, "stock": 25},
+                {"name": "pcs", "price": 35, "stock": 820},
+            ],
             "description": "清脆多汁的白肉芭樂",
         },
         {
             "name": "有機番茄",
             "category": "vegetable",
             "origin": "台灣",
-            "unit": "kg",
             "price": 80,
             "stock": 300,
+            "units": [
+                {"name": "kg", "price": 80, "stock": 300},
+                {"name": "box", "price": 430, "stock": 30},
+                {"name": "bag", "price": 135, "stock": 180},
+            ],
             "description": "新鮮有機番茄，無農藥",
         },
         {
             "name": "有機地瓜",
             "category": "vegetable",
             "origin": "台灣",
-            "unit": "kg",
             "price": 60,
             "stock": 400,
+            "units": [
+                {"name": "kg", "price": 60, "stock": 400},
+                {"name": "box", "price": 330, "stock": 42},
+                {"name": "bag", "price": 115, "stock": 210},
+            ],
             "description": "台南有機地瓜",
         },
         {
             "name": "有機高麗菜",
             "category": "vegetable",
             "origin": "台灣",
-            "unit": "kg",
             "price": 70,
             "stock": 350,
+            "units": [
+                {"name": "kg", "price": 70, "stock": 350},
+                {"name": "box", "price": 390, "stock": 33},
+                {"name": "pcs", "price": 65, "stock": 480},
+            ],
             "description": "高山栽種，口感爽脆",
         },
         {
             "name": "有機紅蘿蔔",
             "category": "vegetable",
             "origin": "台灣",
-            "unit": "kg",
             "price": 65,
             "stock": 280,
+            "units": [
+                {"name": "kg", "price": 65, "stock": 280},
+                {"name": "box", "price": 350, "stock": 29},
+                {"name": "bag", "price": 120, "stock": 175},
+            ],
             "description": "自然甜味，適合燉煮與沙拉",
         },
         {
             "name": "有機白米",
             "category": "grain",
             "origin": "台灣",
-            "unit": "kg",
             "price": 90,
             "stock": 600,
+            "units": [
+                {"name": "kg", "price": 90, "stock": 600},
+                {"name": "bag", "price": 430, "stock": 120},
+                {"name": "box", "price": 1680, "stock": 26},
+            ],
             "description": "友善耕作白米，米香濃郁",
         },
         {
             "name": "有機糙米",
             "category": "grain",
             "origin": "台灣",
-            "unit": "kg",
             "price": 105,
             "stock": 450,
+            "units": [
+                {"name": "kg", "price": 105, "stock": 450},
+                {"name": "bag", "price": 500, "stock": 95},
+                {"name": "box", "price": 1950, "stock": 21},
+            ],
             "description": "保留麩皮與胚芽，營養豐富",
         },
         {
             "name": "有機燕麥",
             "category": "grain",
             "origin": "加拿大",
-            "unit": "kg",
             "price": 130,
             "stock": 320,
+            "units": [
+                {"name": "kg", "price": 130, "stock": 320},
+                {"name": "bag", "price": 620, "stock": 72},
+                {"name": "box", "price": 2400, "stock": 16},
+            ],
             "description": "高纖有機燕麥，適合早餐料理",
         },
     ]
@@ -235,7 +301,6 @@ def seed_products(db):
             "name": item["name"],
             "category_id": category_map[item["category"]],
             "origin": item["origin"],
-            "unit": item["unit"],
             "price": item["price"],
             "stock": item["stock"],
             "description": item["description"],
@@ -245,10 +310,32 @@ def seed_products(db):
         if product:
             for key, value in payload.items():
                 setattr(product, key, value)
-            continue
+        else:
+            product = Product(id=uuid.uuid4(), **payload)
+            db.add(product)
+            created_count += 1
 
-        db.add(Product(id=uuid.uuid4(), **payload))
-        created_count += 1
+        db.flush()
+
+        for unit_item in item["units"]:
+            unit_id = unit_map[unit_item["name"]]
+            product_unit = (
+                db.query(ProductUnits)
+                .filter_by(product_id=product.id, unit_id=unit_id)
+                .first()
+            )
+            if product_unit:
+                product_unit.price = unit_item["price"]
+                product_unit.stock = unit_item["stock"]
+            else:
+                db.add(
+                    ProductUnits(
+                        product_id=product.id,
+                        unit_id=unit_id,
+                        price=unit_item["price"],
+                        stock=unit_item["stock"],
+                    )
+                )
 
     db.flush()
     if created_count == 0:
@@ -265,6 +352,7 @@ def seed():
         seed_roles(db)
         seed_users(db)
         seed_categories(db)
+        seed_units(db)
         seed_products(db)
         db.commit()
         print("Seed 完成！")

@@ -11,6 +11,7 @@ from app.db.session import engine
 import app.modules.orders.model  # noqa: F401
 import app.modules.images.model  # noqa: F401
 import app.modules.products.model  # noqa: F401
+import app.modules.units.model  # noqa: F401
 import app.modules.roles.model  # noqa: F401
 import app.modules.statuses.model  # noqa: F401
 import app.modules.users.model  # noqa: F401

@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from app.modules.users.model import User
 
 
+
+
 class Order(Base):
     __tablename__ = "orders"
     __table_args__ = (
