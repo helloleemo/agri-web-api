@@ -21,7 +21,9 @@ def get_product_by_id(db:Session, product_id:uuid.UUID) -> Product | None:
             Product.id == product_id,
             Product.status_code != StatusCode.DELETED.value
         )
-        .options(selectinload(Product.category))
+        .options(
+            selectinload(Product.category), 
+            selectinload(Product.images))
    ) 
     return db.scalar(stmt)
 

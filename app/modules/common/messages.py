@@ -32,3 +32,10 @@ class OrderMessages:
     CREATE = "order created"
     UPDATE = "order updated"
     DELETE = "order deleted"
+
+class ImageMessages:
+    LIST = "images fetched"
+    GET = "image fetched"
+    CREATE = "image created"
+    UPDATE = "image updated"
+    DELETE = "image deleted"

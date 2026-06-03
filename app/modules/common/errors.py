@@ -43,3 +43,7 @@ def raise_not_found_order(order_id: str | None = None) -> NoReturn:
 def raise_not_found_category(category_id: str | None = None) -> NoReturn:
     detail = f"Category not found: {category_id}" if category_id else None
     raise_error(ErrorCode.CATEGORY_NOT_FOUND, detail=detail)
+
+def raise_not_found_image(image_id: str | None = None) -> NoReturn:
+    detail = f"Image not found: {image_id}" if image_id else None
+    raise_error(ErrorCode.IMAGE_NOT_FOUND, detail=detail)

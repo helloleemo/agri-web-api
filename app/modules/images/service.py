@@ -1,79 +1,95 @@
-from __future__ import annotations
-
-import base64
-import hashlib
-import hmac
-import os
-import time
+import shutil
 import uuid
-from typing import cast
-from urllib.parse import quote
+from pathlib import Path
 
-from app.modules.images.model import ImageAsset, ImageBinding
-from app.modules.images.schema import ImageAssetResponse, ImageBindingResponse, ImageTargetType
+from fastapi import HTTPException, UploadFile
+from sqlalchemy.orm import Session
 
-CDN_BASE_URL = os.getenv("CDN_BASE_URL", "http://localhost:8000/assets").rstrip("/")
-SIGNED_URL_SECRET = os.getenv("SIGNED_URL_SECRET", "dev-secret")
-
-
-def sanitize_filename(filename: str) -> str:
-	return filename.strip().replace(" ", "_")
+from app.modules.images import crud
+from app.modules.images.model import Image
+from app.modules.images.schema import ImageCreate, ImageResponse, ImageUpdate
 
 
-def build_storage_key(asset_id: uuid.UUID, filename: str) -> str:
-	safe_name = quote(sanitize_filename(filename), safe="._-")
-	return f"uploads/{asset_id}/{safe_name}"
+UPLOAD_ROOT = Path("uploads") / "images"
+ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
-def build_public_url(storage_key: str) -> str:
-	return f"{CDN_BASE_URL}/{storage_key}"
+def _to_image_response(image: Image) -> ImageResponse:
+    return ImageResponse(
+        id=image.id,
+        stored_filename=image.stored_filename,
+        file_url=image.file_url,
+        is_primary=image.is_primary,
+        sort_order=image.sort_order,
+        product_id=image.product_id,
+        created_at=image.created_at,
+    )
 
 
-def build_signed_url(storage_key: str, expires_in: int = 900) -> str:
-	expires_at = int(time.time()) + expires_in
-	payload = f"{storage_key}:{expires_at}".encode("utf-8")
-	signature = hmac.new(SIGNED_URL_SECRET.encode("utf-8"), payload, hashlib.sha256).digest()
-	token = base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
-	return f"{build_public_url(storage_key)}?exp={expires_at}&sig={token}"
+def _build_file_url(product_id: uuid.UUID, stored_filename: str) -> str:
+    return f"/uploads/images/{product_id}/{stored_filename}"
 
 
-def build_display_url(storage_key: str, private: bool = False, expires_in: int = 900) -> str:
-	if private:
-		return build_signed_url(storage_key=storage_key, expires_in=expires_in)
-	return build_public_url(storage_key)
+def _save_upload_file(file_path: Path, file: UploadFile) -> None:
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
 
-def build_upload_url(asset_id: uuid.UUID) -> str:
-	return f"/images/upload/{asset_id}"
+def list_images(db: Session, product_id: uuid.UUID) -> list[ImageResponse]:
+    images = crud.get_images_by_product_id(db, product_id)
+    return [_to_image_response(image) for image in images]
 
 
-def to_image_asset_response(asset: ImageAsset, private: bool = False) -> ImageAssetResponse:
-	return ImageAssetResponse(
-		id=asset.id,
-		url=asset.url,
-		storage_key=asset.storage_key,
-		mime_type=asset.mime_type,
-		size_bytes=asset.size_bytes,
-		width=asset.width,
-		height=asset.height,
-		status="active",
-		created_at=asset.created_at,
-		updated_at=asset.updated_at,
-		display_url=build_display_url(asset.storage_key, private=private),
-	)
+def create_image(
+    db: Session,
+    product_id: uuid.UUID,
+    file: UploadFile,
+    is_primary: bool = False,
+    sort_order: int = 0,
+) -> ImageResponse:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="file name is required")
+
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in ALLOWED_IMAGE_SUFFIXES:
+        raise HTTPException(status_code=400, detail="unsupported image file type")
+
+    stored_filename = f"{uuid.uuid4()}{suffix}"
+    file_path = UPLOAD_ROOT / str(product_id) / stored_filename
+    _save_upload_file(file_path, file)
+
+    image_create = ImageCreate(
+        product_id=product_id,
+        is_primary=is_primary,
+        sort_order=sort_order,
+    )
+    image = crud.create_image(
+        db=db,
+        image_create=image_create,
+        stored_filename=stored_filename,
+        file_url=_build_file_url(product_id, stored_filename),
+    )
+    return _to_image_response(image)
 
 
-def to_image_binding_response(binding: ImageBinding, private: bool = False) -> ImageBindingResponse:
-	image = to_image_asset_response(binding.image_asset, private=private) if binding.image_asset else None
-	return ImageBindingResponse(
-		id=binding.id,
-		image_asset_id=binding.image_asset_id,
-		target_type=cast(ImageTargetType, binding.target_type),
-		target_id=binding.target_id,
-		role=binding.role,
-		sort_order=binding.sort_order,
-		is_primary=binding.is_primary,
-		created_at=binding.created_at,
-		updated_at=binding.updated_at,
-		image=image,
-	)
+def update_image(db: Session, image_id: uuid.UUID, image_update: ImageUpdate) -> ImageResponse | None:
+    image = crud.update_image(db, image_id, image_update)
+    if not image:
+        return None
+    return _to_image_response(image)
+
+
+def delete_image(db: Session, image_id: uuid.UUID) -> bool:
+    image = crud.get_image_by_id(db, image_id)
+    if not image:
+        return False
+
+    file_path = Path.cwd() / image.file_url.lstrip("/")
+    if file_path.exists():
+        try:
+            file_path.unlink()
+        except OSError:
+            pass
+
+    return crud.delete_image_by_id(db, image_id)

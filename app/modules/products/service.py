@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.modules.common.pagination import Pagination
+from app.modules.images.schema import ImageResponse
 from app.modules.products import crud
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
@@ -19,8 +20,17 @@ def _to_product_response(db: Session, product: Product) -> ProductResponse:
         price=product.price,
         stock=product.stock,
         description=product.description,
-        image=product.image,
-        image_group=product.image_group,
+        # image=product.image,
+        # image_group=product.image_group,
+        images=[ImageResponse(
+            id=image.id,
+            stored_filename=image.stored_filename,
+            file_url=image.file_url,
+            is_primary=image.is_primary,
+            sort_order=image.sort_order,
+            product_id=image.product_id,
+            created_at=image.created_at
+        ) for image in product.images],
         status_code=StatusCode(product.status_code),
         created_at=product.created_at,
         updated_at=product.updated_at,

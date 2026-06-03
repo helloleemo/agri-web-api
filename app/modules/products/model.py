@@ -22,6 +22,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.modules.orders.model import OrderItem
     from app.modules.categories.model import Category
+    from app.modules.images.model import Image
 
 
 class Product(Base):
@@ -44,8 +45,8 @@ class Product(Base):
     price: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    image:Mapped[str | None] = mapped_column(String(300), nullable=True)
-    image_group:Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    # image:Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # image_group:Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now(),onupdate=func.now())
 
@@ -56,3 +57,4 @@ class Product(Base):
     # relationships
     order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
     category: Mapped["Category"] = relationship("Category", back_populates="products")
+    images: Mapped[list["Image"]] = relationship("Image", back_populates="product", cascade="all, delete-orphan")

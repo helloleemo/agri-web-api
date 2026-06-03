@@ -94,49 +94,167 @@ def seed_users(db):
     print(f"  [完成] 新增 {len(users)} 筆 users")
 
 
-def seed_products(db):
-    if db.query(Product).count() > 0:
-        print("  [跳過] products 已有資料")
-        return
-
-    products = [
-        Product(
-            id=uuid.uuid4(),
-            name="有機蘋果",
-            category_id=db.query(Category).filter_by(name="fruit").first().id,
-            origin="台灣",
-            unit="kg",
-            price=120,
-            stock=500,
-            description="來自台灣高山的有機蘋果",
-            status_code=StatusCode.ENABLED.value,
-        ),
-        Product(
-            id=uuid.uuid4(),
-            name="有機番茄",
-            category_id=db.query(Category).filter_by(name="vegetable").first().id,
-            origin="台灣",
-            unit="kg",
-            price=80,
-            stock=300,
-            description="新鮮有機番茄，無農藥",
-            status_code=StatusCode.ENABLED.value,
-        ),
-        Product(
-            id=uuid.uuid4(),
-            name="有機地瓜",
-            category_id=db.query(Category).filter_by(name="vegetable").first().id,
-            origin="台灣",
-            unit="kg",
-            price=60,
-            stock=400,
-            description="台南有機地瓜",
-            status_code=StatusCode.ENABLED.value,
-        ),
+def seed_categories(db):
+    category_definitions = [
+        {"name": "fruit", "meta_data": {"display_name": "水果"}},
+        {"name": "vegetable", "meta_data": {"display_name": "蔬菜"}},
+        {"name": "grain", "meta_data": {"display_name": "穀物"}},
     ]
-    db.add_all(products)
+
+    created_count = 0
+    for item in category_definitions:
+        category = db.query(Category).filter_by(name=item["name"]).first()
+        if category:
+            category.meta_data = item["meta_data"]
+            continue
+
+        db.add(
+            Category(
+                id=uuid.uuid4(),
+                name=item["name"],
+                meta_data=item["meta_data"],
+            )
+        )
+        created_count += 1
+
     db.flush()
-    print(f"  [完成] 新增 {len(products)} 筆 products")
+    if created_count == 0:
+        print("  [跳過] categories 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 categories")
+
+
+def seed_products(db):
+    category_map = {
+        category.name: category.id
+        for category in db.query(Category).filter(Category.name.in_(["fruit", "vegetable", "grain"]))
+    }
+
+    required_categories = {"fruit", "vegetable", "grain"}
+    if set(category_map.keys()) != required_categories:
+        missing = required_categories - set(category_map.keys())
+        raise ValueError(f"缺少 category seed: {sorted(missing)}")
+
+    product_definitions = [
+        {
+            "name": "有機蘋果",
+            "category": "fruit",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 120,
+            "stock": 500,
+            "description": "來自台灣高山的有機蘋果",
+        },
+        {
+            "name": "有機香蕉",
+            "category": "fruit",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 95,
+            "stock": 420,
+            "description": "香甜軟糯的有機香蕉",
+        },
+        {
+            "name": "有機芭樂",
+            "category": "fruit",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 110,
+            "stock": 260,
+            "description": "清脆多汁的白肉芭樂",
+        },
+        {
+            "name": "有機番茄",
+            "category": "vegetable",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 80,
+            "stock": 300,
+            "description": "新鮮有機番茄，無農藥",
+        },
+        {
+            "name": "有機地瓜",
+            "category": "vegetable",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 60,
+            "stock": 400,
+            "description": "台南有機地瓜",
+        },
+        {
+            "name": "有機高麗菜",
+            "category": "vegetable",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 70,
+            "stock": 350,
+            "description": "高山栽種，口感爽脆",
+        },
+        {
+            "name": "有機紅蘿蔔",
+            "category": "vegetable",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 65,
+            "stock": 280,
+            "description": "自然甜味，適合燉煮與沙拉",
+        },
+        {
+            "name": "有機白米",
+            "category": "grain",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 90,
+            "stock": 600,
+            "description": "友善耕作白米，米香濃郁",
+        },
+        {
+            "name": "有機糙米",
+            "category": "grain",
+            "origin": "台灣",
+            "unit": "kg",
+            "price": 105,
+            "stock": 450,
+            "description": "保留麩皮與胚芽，營養豐富",
+        },
+        {
+            "name": "有機燕麥",
+            "category": "grain",
+            "origin": "加拿大",
+            "unit": "kg",
+            "price": 130,
+            "stock": 320,
+            "description": "高纖有機燕麥，適合早餐料理",
+        },
+    ]
+
+    created_count = 0
+    for item in product_definitions:
+        product = db.query(Product).filter_by(name=item["name"]).first()
+        payload = {
+            "name": item["name"],
+            "category_id": category_map[item["category"]],
+            "origin": item["origin"],
+            "unit": item["unit"],
+            "price": item["price"],
+            "stock": item["stock"],
+            "description": item["description"],
+            "status_code": StatusCode.ENABLED.value,
+        }
+
+        if product:
+            for key, value in payload.items():
+                setattr(product, key, value)
+            continue
+
+        db.add(Product(id=uuid.uuid4(), **payload))
+        created_count += 1
+
+    db.flush()
+    if created_count == 0:
+        print("  [跳過] products 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 products")
 
 
 def seed():
@@ -146,6 +264,7 @@ def seed():
         seed_statuses(db)
         seed_roles(db)
         seed_users(db)
+        seed_categories(db)
         seed_products(db)
         db.commit()
         print("Seed 完成！")

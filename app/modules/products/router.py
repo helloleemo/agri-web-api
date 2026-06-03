@@ -68,6 +68,8 @@ def update_product(
     db: Session = Depends(get_db),
 ):
     update_product = service.update_product(db, product_id, payload)
+    if not update_product:
+        return raise_not_found_product(str(product_id))
     
     return ok(update_product, ProductMessages.UPDATE)
 

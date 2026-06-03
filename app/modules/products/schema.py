@@ -2,6 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
+from app.modules.images.schema import ImageResponse
 from app.modules.statuses.constants import StatusCode
 
 
@@ -14,8 +15,9 @@ class ProductBase(BaseModel):
     price: int = Field(default=0, ge=0)
     stock: int = Field(default=0, ge=0)
     description: str | None = None
-    image: str | None = Field(default=None, max_length=500)
-    image_group: list[str] | None = Field(default=None)
+    images: list[ImageResponse] | None = None
+    # image: str | None = Field(default=None, max_length=500)
+    # image_group: list[str] | None = Field(default=None)
     status_code: StatusCode = Field(default=StatusCode.ENABLED)
 
 class ProductCreate(ProductBase):
@@ -29,8 +31,9 @@ class ProductUpdate(ProductBase): # 全部改成部分更新
     price: int | None = Field(default=None, ge=0)
     stock: int | None = Field(default=None, ge=0)
     description: str | None = None
-    image: str | None = Field(default=None, max_length=500)
-    image_group: list[str] | None = Field(default=None)
+    images: list[ImageResponse] | None = None
+    # image: str | None = Field(default=None, max_length=500)
+    # image_group: list[str] | None = Field(default=None)
     status_code: StatusCode | None = None
 
 class ProductResponse(ProductBase):
