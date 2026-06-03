@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy.orm import Session
 
+from app.modules.common.pagination import Pagination
 from app.modules.products import crud
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
@@ -11,7 +12,8 @@ def _to_product_response(db: Session, product: Product) -> ProductResponse:
     return ProductResponse(
         id=product.id,
         name=product.name,
-        category=product.category,
+        category_id=product.category_id,
+        category_name=product.category.name,
         origin=product.origin,
         unit=product.unit,
         price=product.price,
@@ -37,7 +39,7 @@ def get_product(db: Session, product_id: uuid.UUID) -> ProductResponse | None:
 
 
 def list_products(db: Session, skip: int = 0, limit: int = 10) -> list[ProductResponse]:
-    products = crud.get_products(db, skip=skip, limit=limit)
+    products = crud.get_products(db, pagination=Pagination(skip=skip, limit=limit))
     return [_to_product_response(db, product) for product in products]
 
 

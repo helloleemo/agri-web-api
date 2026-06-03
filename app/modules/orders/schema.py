@@ -8,32 +8,32 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class OrderItemBase(BaseModel):
 	product_id: uuid.UUID
+	unit: str = Field(..., max_length=20)
 	quantity: int = Field(default=1, ge=1)
-	status_id: int = Field(default=1, ge=1)
 
 
 class OrderItemCreate(OrderItemBase):
 	pass
 
-
-class OrderItemUpdate(BaseModel):
-	product_id: uuid.UUID | None = None
-	product_name: str | None = None
-	quantity: int | None = Field(default=None, ge=1)
-	status_id: int | None = Field(default=None, ge=1)
+class OrderItemUpdate(OrderItemBase):
+	pass
 
 
 class OrderItemResponse(OrderItemBase):
 	id: uuid.UUID
 	order_id: uuid.UUID
 	product_name: str | None = None
+	unit: str = Field(..., max_length=20)
 
 	model_config = ConfigDict(from_attributes=True)
 
 
+# ----------------------------
+
+
 class OrderBase(BaseModel):
 	user_id: uuid.UUID
-	status_id: int = Field(default=1, ge=1)
+	status_code: int = Field(default=1, ge=1)
 
 
 class OrderCreate(OrderBase):
@@ -41,15 +41,14 @@ class OrderCreate(OrderBase):
 
 
 class OrderUpdate(BaseModel):
-	status_id: int | None = Field(default=None, ge=1)
-	items: list[OrderItemCreate] | None = None
+	items: list[OrderItemUpdate] | None = None
 
 
 class OrderResponse(OrderBase):
 	id: uuid.UUID
+	user_name: str | None
 	created_at: datetime
 	updated_at: datetime
 	items: list[OrderItemResponse]
-	user_name: str | None
 
 	model_config = ConfigDict(from_attributes=True)

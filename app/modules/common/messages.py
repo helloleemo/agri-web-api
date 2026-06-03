@@ -19,6 +19,12 @@ class ProductMessages:
     UPDATE = "product updated"
     DELETE = "product deleted"
 
+class CategoryMessages:
+    LIST = "categories fetched"
+    GET = "category fetched"
+    CREATE = "category created"
+    UPDATE = "category updated"
+    DELETE = "category deleted"
 
 class OrderMessages:
     LIST = "orders fetched"

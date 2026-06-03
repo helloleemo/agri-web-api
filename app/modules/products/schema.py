@@ -7,7 +7,8 @@ from app.modules.statuses.constants import StatusCode
 
 class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
-    category: str = Field(default="other", max_length=60)
+    category_id: uuid.UUID = Field(...)
+    category_name: str | None = Field(default=None, max_length=60)
     origin: str | None = Field(default=None, max_length=120)
     unit: str = Field(default="kg", max_length=20)
     price: int = Field(default=0, ge=0)
@@ -22,7 +23,7 @@ class ProductCreate(ProductBase):
 
 class ProductUpdate(ProductBase): # 全部改成部分更新
     name: str | None = Field(default=None, min_length=1, max_length=120)
-    category: str | None = Field(default=None, max_length=60)
+    category_id: uuid.UUID | None = Field(default=None)
     origin: str | None = Field(default=None, max_length=120)
     unit: str | None = Field(default=None, max_length=20)
     price: int | None = Field(default=None, ge=0)

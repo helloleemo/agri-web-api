@@ -1,8 +1,9 @@
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
+from app.modules.common.pagination import Pagination
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductUpdate
 from app.modules.statuses.constants import StatusCode
@@ -14,19 +15,23 @@ from app.modules.statuses.constants import StatusCode
 # delete_product()'
 
 def get_product_by_id(db:Session, product_id:uuid.UUID) -> Product | None:
-    stmt = select(Product).where(
-        Product.id == product_id,
-        Product.status_code != StatusCode.DELETED.value,
-    )
+    stmt = (
+        select(Product)
+        .where(
+            Product.id == product_id,
+            Product.status_code != StatusCode.DELETED.value
+        )
+        .options(selectinload(Product.category))
+   ) 
     return db.scalar(stmt)
 
 
-def get_products(db: Session, skip: int = 0, limit: int = 10) -> list[Product]:
+def get_products(db: Session, pagination: Pagination) -> list[Product]:
     stmt = (
         select(Product)
         .where(Product.status_code != StatusCode.DELETED.value)
-        .offset(skip)
-        .limit(limit)
+        .offset(pagination.skip)
+        .limit(pagination.limit)
     )
     return list(db.scalars(stmt).all())
 

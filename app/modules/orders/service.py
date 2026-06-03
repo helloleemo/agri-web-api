@@ -3,35 +3,27 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.modules.orders import crud
+from app.modules.common.pagination import Pagination
 from app.modules.orders.model import Order
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
-from app.modules.statuses.utils import get_status_code_by_id
 
 
 def _to_order_response(db: Session, order: Order) -> OrderResponse:
-	order_status_code = get_status_code_by_id(db, order.status_id)
-	if order_status_code is None:
-		raise ValueError("Order status is invalid")
-
 	items = []
 	for item in order.items:
-		item_status_code = get_status_code_by_id(db, item.status_id)
-		if item_status_code is None:
-			raise ValueError("Order item status is invalid")
-
 		items.append({
 			"id": item.id,
 			"order_id": item.order_id,
 			"product_id": item.product_id,
 			"quantity": item.quantity,
-			"status_id": item_status_code,
+			"unit": getattr(item, "unit", None),
 			"product_name": getattr(item, "product_name", None),
 		})
 
 	return OrderResponse(
 		id=order.id,
 		user_id=order.user_id,
-		status_id=order_status_code,
+		status_code=order.status_code,
 		created_at=order.created_at,
 		updated_at=order.updated_at,
 		items=items,
@@ -57,7 +49,8 @@ def list_orders(
 	limit: int = 10,
 	user_id: uuid.UUID | None = None,
 ) -> list[OrderResponse]:
-	orders = crud.get_orders(db, skip=skip, limit=limit, user_id=user_id)
+	pagination = Pagination(skip=skip, limit=limit)
+	orders = crud.get_orders(db, pagination=pagination, user_id=user_id)
 	return [_to_order_response(db, order) for order in orders]
 
 

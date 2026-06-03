@@ -14,6 +14,7 @@ from app.db.session import SessionLocal
 from app.modules.statuses.model import Status
 from app.modules.roles.model import Role
 from app.modules.users.model import User
+from app.modules.categories.model import Category
 from app.modules.products.model import Product
 from app.modules.orders.model import Order, OrderItem  
 from app.modules.roles.constants import RoleCode
@@ -102,7 +103,7 @@ def seed_products(db):
         Product(
             id=uuid.uuid4(),
             name="有機蘋果",
-            category="fruit",
+            category_id=db.query(Category).filter_by(name="fruit").first().id,
             origin="台灣",
             unit="kg",
             price=120,
@@ -113,7 +114,7 @@ def seed_products(db):
         Product(
             id=uuid.uuid4(),
             name="有機番茄",
-            category="vegetable",
+            category_id=db.query(Category).filter_by(name="vegetable").first().id,
             origin="台灣",
             unit="kg",
             price=80,
@@ -124,7 +125,7 @@ def seed_products(db):
         Product(
             id=uuid.uuid4(),
             name="有機地瓜",
-            category="vegetable",
+            category_id=db.query(Category).filter_by(name="vegetable").first().id,
             origin="台灣",
             unit="kg",
             price=60,
