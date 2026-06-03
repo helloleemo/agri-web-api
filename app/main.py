@@ -17,6 +17,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.users.router import router as users_router
 from app.modules.orders.router import router as orders_router
 from app.modules.images.router import router as images_router
+from app.modules.categories.router import router as categories_router
 from app.modules.common.exception_handlers import register_exception_handlers
 
 # Configure logging
@@ -56,6 +57,7 @@ app.include_router(products_router)
 app.include_router(users_router)
 app.include_router(orders_router)
 app.include_router(images_router)
+app.include_router(categories_router)
 
 
 @app.get("/health", tags=["Health"])
