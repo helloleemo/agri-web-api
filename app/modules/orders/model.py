@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -7,6 +9,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+import app.modules.products.model  # noqa: F401
+import app.modules.units.model  # noqa: F401
+import app.modules.categories.model  # noqa: F401
+import app.modules.images.model  # noqa: F401
 
 if TYPE_CHECKING:
     from app.modules.products.model import Product
@@ -25,6 +31,7 @@ class Order(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_no: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now(),onupdate=func.now())
 
@@ -54,6 +61,6 @@ class OrderItem(Base):
 
     # relationships
     order: Mapped["Order"] = relationship("Order", back_populates="items")
-    products: Mapped["Product"] = relationship("Product", back_populates="order_items")
+    product: Mapped["Product"] = relationship("Product", back_populates="order_items")
 
 

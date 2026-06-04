@@ -25,7 +25,7 @@ def get_user_by_id(db:Session, user_id:uuid.UUID) -> User | None:
 			User.id == user_id,
 			User.status_code != StatusCode.DELETED.value,
 		)
-		.options(selectinload(User.orders).selectinload(Order.items).selectinload(OrderItem.products))
+		.options(selectinload(User.orders).selectinload(Order.items).selectinload(OrderItem.product))
 		### selectinload
 	)
 
@@ -42,7 +42,7 @@ def get_users(db: Session, pagination:Pagination) -> list[User]:
 	stmt = (
 		select(User)
 		.where(User.status_code != StatusCode.DELETED.value)
-		.options(selectinload(User.orders).selectinload(Order.items).selectinload(OrderItem.products))
+		.options(selectinload(User.orders).selectinload(Order.items).selectinload(OrderItem.product))
 		.offset(pagination.skip)
 		.limit(pagination.limit)
 	)
@@ -52,7 +52,12 @@ def create_user(db: Session, user_create:UserCreate) -> User:
 	payload = user_create.model_dump()
 	password = payload.pop("password")
 	payload["password_hash"] = _hash_password(password)
+	if hasattr(payload.get("role_code"), "value"):
+		payload["role_code"] = payload["role_code"].value
 	payload.setdefault("status_code", StatusCode.ENABLED.value)
+	now = datetime.now(timezone.utc)
+	payload.setdefault("created_at", now)
+	payload.setdefault("updated_at", now)
 
 	new_user = User(**payload)
 
@@ -71,6 +76,8 @@ def update_user(db: Session, user_id: uuid.UUID, user_update: UserUpdate) -> Use
 	password = payload.pop("password", None)
 	if password is not None:
 		payload["password_hash"] = _hash_password(password)
+	if hasattr(payload.get("role_code"), "value"):
+		payload["role_code"] = payload["role_code"].value
 
 	for field, value in payload.items():
 		setattr(user, field, value)

@@ -17,7 +17,7 @@ def get_order_by_id(db: Session, order_id: uuid.UUID) -> Order | None:
 			Order.status_code != StatusCode.DELETED.value,
 		)
 		.options(selectinload(Order.user))
-		.options(selectinload(Order.items).selectinload(OrderItem.products))
+		.options(selectinload(Order.items).selectinload(OrderItem.product))
 	)
 	return db.scalar(stmt)
 
@@ -39,8 +39,9 @@ def get_orders(
 	return list(db.scalars(stmt).all())
 
 
-def create_order(db: Session, order_create: OrderCreate) -> Order:
+def create_order(db: Session, order_create: OrderCreate, order_no: str) -> Order:
 	payload = order_create.model_dump(exclude={"items"})
+	payload["order_no"] = order_no
 	new_order = Order(**payload)
 	
 	db.add(new_order)

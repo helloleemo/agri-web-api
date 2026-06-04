@@ -15,6 +15,7 @@ from app.modules.statuses.model import Status
 from app.modules.roles.model import Role
 from app.modules.users.model import User
 from app.modules.categories.model import Category
+from app.modules.images.model import Image  # noqa: F401
 from app.modules.products.model import Product, ProductUnits
 from app.modules.units.model import Unit
 from app.modules.orders.model import Order, OrderItem  
@@ -48,9 +49,9 @@ def seed_statuses(db):
 
 def seed_roles(db):
     role_definitions = [
-        {"name": "admin", "code": RoleCode.ROLE_ADMIN},
-        {"name": "staff", "code": RoleCode.ROLE_STAFF},
-        {"name": "member", "code": RoleCode.ROLE_MEMBER},
+        {"name": "admin", "code": RoleCode.ROLE_ADMIN.value},
+        {"name": "staff", "code": RoleCode.ROLE_STAFF.value},
+        {"name": "member", "code": RoleCode.ROLE_MEMBER.value},
     ]
 
     created_count = 0

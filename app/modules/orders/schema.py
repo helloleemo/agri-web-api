@@ -46,6 +46,7 @@ class OrderUpdate(BaseModel):
 
 class OrderResponse(OrderBase):
 	id: uuid.UUID
+	order_no: str
 	user_name: str | None
 	created_at: datetime
 	updated_at: datetime

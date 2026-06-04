@@ -33,6 +33,8 @@ import app.modules.products.model
 import app.modules.images.model
 import app.modules.users.model
 import app.modules.orders.model
+import app.modules.units.model
+import app.modules.categories.model
 import app.modules.roles.model
 import app.modules.statuses.model
 

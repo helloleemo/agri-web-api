@@ -49,10 +49,10 @@ class ProductUpdate(BaseModel):
     origin: str | None = Field(default=None, max_length=120)
     description: str | None = None
     images: list[ImageResponse] | None = None
-    units: list[ProductUnitUpdate] | None = None
     # image: str | None = Field(default=None, max_length=500)
     # image_group: list[str] | None = Field(default=None)
     status_code: StatusCode | None = None
+    units: list[ProductUnitUpdate] | None = None
 
 
 class ProductResponse(ProductBase):
