@@ -36,13 +36,14 @@ def _generate_order_no(db: Session) -> str:
 def _to_order_response(db: Session, order: Order) -> OrderResponse:
 	items = []
 	for item in order.items:
+		product = getattr(item, "product", None)
 		items.append({
 			"id": item.id,
 			"order_id": item.order_id,
 			"product_id": item.product_id,
 			"quantity": item.quantity,
-			"unit": getattr(item, "unit", None),
-			"product_name": getattr(item, "product_name", None),
+			"unit": None,
+			"product_name": getattr(product, "name", None),
 		})
 
 	return OrderResponse(
@@ -53,7 +54,7 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 		created_at=order.created_at,
 		updated_at=order.updated_at,
 		items=items,
-		user_name=getattr(order, "user_name", None),
+		user_name=getattr(getattr(order, "user", None), "user_name", None),
 	)
 
 
@@ -73,9 +74,9 @@ def get_order_by_id(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
 def list_orders(
 	db: Session,
 	skip: int = 0,
-	limit: int = 10,
+	limit: int = 200,
 	user_id: uuid.UUID | None = None,
-) -> list[OrderResponse]:
+) -> "list[OrderResponse]":
 	pagination = Pagination(skip=skip, limit=limit)
 	orders = crud.get_orders(db, pagination=pagination, user_id=user_id)
 	return [_to_order_response(db, order) for order in orders]

@@ -23,7 +23,7 @@ class OrderItemResponse(OrderItemBase):
 	id: uuid.UUID
 	order_id: uuid.UUID
 	product_name: str | None = None
-	unit: str = Field(..., max_length=20)
+	unit: str | None = Field(default=None, max_length=20)
 
 	model_config = ConfigDict(from_attributes=True)
 

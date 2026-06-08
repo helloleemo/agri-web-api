@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from app.modules.common.pagination import Pagination
@@ -59,7 +60,7 @@ def get_product(db: Session, product_id: uuid.UUID) -> ProductResponse | None:
     return _to_product_response(db, product)
 
 
-def list_products(db: Session, skip: int = 0, limit: int = 10) -> list[ProductResponse]:
+def list_products(db: Session, skip: int = 0, limit: int = 200) -> "list[ProductResponse]":
     products = crud.get_products(db, pagination=Pagination(skip=skip, limit=limit))
     return [_to_product_response(db, product) for product in products]
 

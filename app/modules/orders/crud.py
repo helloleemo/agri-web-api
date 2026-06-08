@@ -30,7 +30,8 @@ def get_orders(
 	stmt = (
 		select(Order)
 		.where(Order.status_code != StatusCode.DELETED.value)
-		.options(selectinload(Order.items))
+		.options(selectinload(Order.user))
+		.options(selectinload(Order.items).selectinload(OrderItem.product))
 	)
 	if user_id is not None:
 		stmt = stmt.where(Order.user_id == user_id)
