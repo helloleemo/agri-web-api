@@ -17,6 +17,11 @@ def get_category_by_id(db: Session, category_id: uuid.UUID) -> Category | None:
     )
     return db.scalar(stmt)
 
+
+def get_category_by_name(db: Session, name: str) -> Category | None:
+    stmt = select(Category).where(Category.name == name)
+    return db.scalar(stmt)
+
 def get_categories(db:Session) -> list[Category]:
     stmt = select(Category)
     

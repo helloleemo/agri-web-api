@@ -8,3 +8,5 @@ class ApiResponse(GenericModel, Generic[T]):
     success: bool
     message: str
     data: T | None = None
+    code: str | None = None
+    detail: str | None = None

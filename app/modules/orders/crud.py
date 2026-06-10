@@ -4,6 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.common.pagination import Pagination
+from app.modules.common.error_code import ErrorCode
+from app.modules.common.errors import raise_error
+from app.modules.order_statuses import crud as order_statuses_crud
 from app.modules.orders.model import Order, OrderItem
 from app.modules.orders.schema import OrderCreate, OrderUpdate
 from app.modules.statuses.constants import StatusCode
@@ -17,6 +20,7 @@ def get_order_by_id(db: Session, order_id: uuid.UUID) -> Order | None:
 			Order.status_code != StatusCode.DELETED.value,
 		)
 		.options(selectinload(Order.user))
+		.options(selectinload(Order.order_status))
 		.options(selectinload(Order.items).selectinload(OrderItem.product))
 	)
 	return db.scalar(stmt)
@@ -31,6 +35,7 @@ def get_orders(
 		select(Order)
 		.where(Order.status_code != StatusCode.DELETED.value)
 		.options(selectinload(Order.user))
+		.options(selectinload(Order.order_status))
 		.options(selectinload(Order.items).selectinload(OrderItem.product))
 	)
 	if user_id is not None:
@@ -43,6 +48,8 @@ def get_orders(
 def create_order(db: Session, order_create: OrderCreate, order_no: str) -> Order:
 	payload = order_create.model_dump(exclude={"items"})
 	payload["order_no"] = order_no
+	if not order_statuses_crud.get_order_status_by_code(db, payload["order_status_code"]):
+		raise_error(ErrorCode.ORDER_INVALID_STATUS, detail=f"Invalid order_status_code: {payload['order_status_code']}")
 	new_order = Order(**payload)
 	
 	db.add(new_order)
@@ -65,6 +72,9 @@ def update_order(db: Session, order_id: uuid.UUID, order_update: OrderUpdate) ->
 
 	payload = order_update.model_dump(exclude_unset=True)
 	items = payload.pop("items", None)
+	order_status_code = payload.get("order_status_code")
+	if order_status_code is not None and not order_statuses_crud.get_order_status_by_code(db, order_status_code):
+		raise_error(ErrorCode.ORDER_INVALID_STATUS, detail=f"Invalid order_status_code: {order_status_code}")
 
 	for field, value in payload.items():
 		setattr(order, field, value)

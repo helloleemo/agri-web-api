@@ -16,6 +16,7 @@ import app.modules.images.model  # noqa: F401
 
 if TYPE_CHECKING:
     from app.modules.products.model import Product
+    from app.modules.order_statuses.model import OrderStatus
     from app.modules.statuses.model import Status
     from app.modules.users.model import User
 
@@ -27,6 +28,7 @@ class Order(Base):
     __table_args__ = (
         Index("idx_orders_user_id", "user_id"),
         Index("idx_orders_status_code", "status_code"),
+        Index("idx_orders_order_status_code", "order_status_code"),
         Index("idx_orders_created_at", "created_at"),
     )
 
@@ -37,10 +39,12 @@ class Order(Base):
 
     # Foreign keys
     status_code: Mapped[int] = mapped_column(Integer, ForeignKey("statuses.code"), nullable=False)
+    order_status_code: Mapped[int] = mapped_column(Integer, ForeignKey("order_statuses.code"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # relationships
     user: Mapped["User"] = relationship("User", back_populates="orders")
+    order_status: Mapped["OrderStatus"] = relationship("OrderStatus")
     items: Mapped[list["OrderItem"]] = relationship("OrderItem",back_populates="order",cascade="all, delete-orphan")
     
 

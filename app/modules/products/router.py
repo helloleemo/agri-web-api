@@ -75,12 +75,14 @@ def update_product(
 
 @router.delete(
     "/{product_id}",
-    response_model=ApiResponse[ProductResponse],
+    response_model=ApiResponse[dict[str, str]],
     response_model_exclude_none=True,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
     
 )
 def delete_product(product_id: uuid.UUID, db: Session = Depends(get_db)):
-    deleted_product = service.delete_product(db, product_id)
-    return deleted(deleted_product, ProductMessages.DELETE)
+    is_deleted = service.delete_product(db, product_id)
+    if not is_deleted:
+        raise_not_found_product(str(product_id))
+    return deleted(str(product_id), ProductMessages.DELETE)

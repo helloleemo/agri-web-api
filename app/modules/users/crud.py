@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.common.pagination import Pagination
 from app.modules.orders.model import Order, OrderItem
 from app.modules.users.model import User
 from app.modules.users.schema import UserCreate, UserUpdate
@@ -38,13 +37,13 @@ def get_user_by_email(db:Session, email:str) -> User |None:
 	)
 	return db.scalar(stmt)
 
-def get_users(db: Session, pagination:Pagination) -> list[User]:
+def get_users(db: Session, skip: int = 0, limit: int = 10) -> list[User]:
 	stmt = (
 		select(User)
 		.where(User.status_code != StatusCode.DELETED.value)
 		.options(selectinload(User.orders).selectinload(Order.items).selectinload(OrderItem.product))
-		.offset(pagination.skip)
-		.limit(pagination.limit)
+		.offset(skip)
+		.limit(limit)
 	)
 	return list(db.scalars(stmt).all())
 

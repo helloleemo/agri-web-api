@@ -35,6 +35,14 @@ ERROR_CATALOG: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.ORDER_NOT_FOUND: ErrorSpec(ErrorCode.ORDER_NOT_FOUND, 404, "not found", "Order not found"),
     ErrorCode.ORDER_INVALID_STATUS: ErrorSpec(ErrorCode.ORDER_INVALID_STATUS, 400, "bad request", "Order status is invalid"),
     ErrorCode.ORDER_ITEM_INVALID: ErrorSpec(ErrorCode.ORDER_ITEM_INVALID, 400, "bad request", "Order item is invalid"),
+
+    # Categories
+    ErrorCode.CATEGORY_NOT_FOUND: ErrorSpec(ErrorCode.CATEGORY_NOT_FOUND, 404, "not found", "Category not found"),
+    ErrorCode.CATEGORY_NAME_ALREADY_EXISTS: ErrorSpec(ErrorCode.CATEGORY_NAME_ALREADY_EXISTS, 409, "conflict", "Category name already exists"),
+
+    # Images
+    ErrorCode.IMAGE_NOT_FOUND: ErrorSpec(ErrorCode.IMAGE_NOT_FOUND, 404, "not found", "Image not found"),
+    ErrorCode.IMAGE_INVALID_FORMAT: ErrorSpec(ErrorCode.IMAGE_INVALID_FORMAT, 400, "bad request", "Image format is invalid"),
 }
 
 

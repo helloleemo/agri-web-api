@@ -19,9 +19,11 @@ class OrderItemUpdate(OrderItemBase):
 	pass
 
 
-class OrderItemResponse(OrderItemBase):
+class OrderItemResponse(BaseModel):
 	id: uuid.UUID
 	order_id: uuid.UUID
+	product_id: uuid.UUID
+	quantity: int
 	product_name: str | None = None
 	unit: str | None = Field(default=None, max_length=20)
 
@@ -34,6 +36,7 @@ class OrderItemResponse(OrderItemBase):
 class OrderBase(BaseModel):
 	user_id: uuid.UUID
 	status_code: int = Field(default=1, ge=1)
+	order_status_code: int = Field(default=1, ge=1)
 
 
 class OrderCreate(OrderBase):
@@ -48,6 +51,7 @@ class OrderResponse(OrderBase):
 	id: uuid.UUID
 	order_no: str
 	user_name: str | None
+	order_status_name: str | None = None
 	created_at: datetime
 	updated_at: datetime
 	items: list[OrderItemResponse]

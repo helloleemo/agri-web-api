@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.modules.categories import crud
 from app.modules.categories.model import Category
 from app.modules.categories.schema import CategoryResponse, CreateCategory, UpdateCategory
+from app.modules.common.error_code import ErrorCode
+from app.modules.common.errors import raise_error
 
 
 def _to_category_response(category: Category) -> CategoryResponse:
@@ -19,6 +21,9 @@ def _to_category_response(category: Category) -> CategoryResponse:
     )
 
 def create_category(db: Session, data: CreateCategory) -> CategoryResponse:
+    existing = crud.get_category_by_name(db, data.name)
+    if existing:
+        raise_error(ErrorCode.CATEGORY_NAME_ALREADY_EXISTS, detail=f"Category name already exists: {data.name}")
     category = crud.create_category(db, data)
     return _to_category_response(category)
 
@@ -38,6 +43,10 @@ def update_category(
     category_id: uuid.UUID,
     data: UpdateCategory,
 ) -> CategoryResponse | None:
+    existing = crud.get_category_by_name(db, data.name)
+    if existing and existing.id != category_id:
+        raise_error(ErrorCode.CATEGORY_NAME_ALREADY_EXISTS, detail=f"Category name already exists: {data.name}")
+
     updated = crud.update_category(db, category_id, data)
     if updated is None:
         return None

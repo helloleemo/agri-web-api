@@ -12,14 +12,16 @@ from datetime import datetime, timezone
 from app.db.session import SessionLocal
 
 from app.modules.statuses.model import Status
+from app.modules.order_statuses.model import OrderStatus
 from app.modules.roles.model import Role
 from app.modules.users.model import User
 from app.modules.categories.model import Category
 from app.modules.images.model import Image  # noqa: F401
 from app.modules.products.model import Product, ProductUnits
 from app.modules.units.model import Unit
-from app.modules.orders.model import Order, OrderItem  
+from app.modules.orders.model import Order, OrderItem
 from app.modules.roles.constants import RoleCode
+from app.modules.order_statuses.constants import OrderStatusCode
 from app.modules.statuses.constants import StatusCode
 
 
@@ -72,28 +74,83 @@ def seed_roles(db):
         print(f"  [完成] 新增 {created_count} 筆 roles")
 
 
-def seed_users(db):
-    if db.query(User).count() > 0:
-        print("  [跳過] users 已有資料")
-        return
+def seed_order_statuses(db):
+    order_status_definitions = [
+        {"code": OrderStatusCode.ORDER_CREATED.value, "name": "訂單成立"},
+        {"code": OrderStatusCode.ORDER_CONFIRMED.value, "name": "確認訂單"},
+        {"code": OrderStatusCode.PENDING_PAYMENT.value, "name": "待付款"},
+        {"code": OrderStatusCode.PAID.value, "name": "已付款"},
+        {"code": OrderStatusCode.PREPARING.value, "name": "備貨中"},
+        {"code": OrderStatusCode.SHIPPING.value, "name": "出貨"},
+    ]
 
+    created_count = 0
+    for item in order_status_definitions:
+        order_status = db.query(OrderStatus).filter_by(code=item["code"]).first()
+        if order_status:
+            if order_status.name != item["name"]:
+                order_status.name = item["name"]
+            continue
+
+        db.add(OrderStatus(id=uuid.uuid4(), name=item["name"], code=item["code"]))
+        created_count += 1
+
+    db.flush()
+    if created_count == 0:
+        print("  [跳過] order_statuses 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 order_statuses")
+
+
+def seed_users(db):
     now = datetime.now(timezone.utc)
 
-    users = [
-        User(
-            id=uuid.uuid4(),
-            email="admin@agri.com",
-            user_name="admin",
-            password_hash="hashed_password_placeholder",
-            role_code=RoleCode.ROLE_ADMIN.value,
-            status_code=StatusCode.ENABLED.value,
-            created_at=now,
-            updated_at=now,
-        ),
+    user_definitions = [
+        {
+            "email": "admin@agri.com",
+            "user_name": "admin",
+            "password_hash": "hashed_password_placeholder",
+            "role_code": RoleCode.ROLE_ADMIN.value,
+            "status_code": StatusCode.ENABLED.value,
+        },
+        {
+            "email": "user01@agri.com",
+            "user_name": "user01",
+            "password_hash": "hashed_password_placeholder",
+            "role_code": RoleCode.ROLE_MEMBER.value,
+            "status_code": StatusCode.ENABLED.value,
+        },
     ]
-    db.add_all(users)
+
+    created_count = 0
+    for item in user_definitions:
+        user = db.query(User).filter_by(email=item["email"]).first()
+        if user:
+            user.user_name = item["user_name"]
+            user.password_hash = item["password_hash"]
+            user.role_code = item["role_code"]
+            user.status_code = item["status_code"]
+            continue
+
+        db.add(
+            User(
+                id=uuid.uuid4(),
+                email=item["email"],
+                user_name=item["user_name"],
+                password_hash=item["password_hash"],
+                role_code=item["role_code"],
+                status_code=item["status_code"],
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        created_count += 1
+
     db.flush()
-    print(f"  [完成] 新增 {len(users)} 筆 users")
+    if created_count == 0:
+        print("  [跳過] users 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 users")
 
 
 def seed_categories(db):
@@ -345,16 +402,103 @@ def seed_products(db):
         print(f"  [完成] 新增 {created_count} 筆 products")
 
 
+def seed_orders(db):
+    user = db.query(User).filter_by(user_name="user01").first()
+    if not user:
+        raise ValueError("缺少 user01，請先執行 seed_users")
+
+    product_names = ["有機蘋果", "有機白米", "有機番茄", "有機燕麥"]
+    products = db.query(Product).filter(Product.name.in_(product_names)).all()
+    product_map = {product.name: product.id for product in products}
+
+    missing_products = set(product_names) - set(product_map.keys())
+    if missing_products:
+        raise ValueError(f"缺少 product seed: {sorted(missing_products)}")
+
+    order_definitions = [
+        {
+            "order_no": "SEED000001",
+            "status_code": StatusCode.ENABLED.value,
+            "order_status_code": OrderStatusCode.ORDER_CREATED.value,
+            "items": [
+                {"product_name": "有機蘋果", "quantity": 2},
+                {"product_name": "有機白米", "quantity": 1},
+            ],
+        },
+        {
+            "order_no": "SEED000002",
+            "status_code": StatusCode.ENABLED.value,
+            "order_status_code": OrderStatusCode.ORDER_CREATED.value,
+            "items": [
+                {"product_name": "有機番茄", "quantity": 3},
+                {"product_name": "有機燕麥", "quantity": 2},
+            ],
+        },
+    ]
+
+    created_count = 0
+    for item in order_definitions:
+        order = db.query(Order).filter_by(order_no=item["order_no"]).first()
+
+        if order:
+            order.user_id = user.id
+            order.status_code = item["status_code"]
+            order.order_status_code = item["order_status_code"]
+        else:
+            order = Order(
+                id=uuid.uuid4(),
+                order_no=item["order_no"],
+                user_id=user.id,
+                status_code=item["status_code"],
+                order_status_code=item["order_status_code"],
+            )
+            db.add(order)
+            created_count += 1
+
+        db.flush()
+
+        existing_items = {order_item.product_id: order_item for order_item in order.items}
+        expected_product_ids = set()
+
+        for order_item_data in item["items"]:
+            product_id = product_map[order_item_data["product_name"]]
+            expected_product_ids.add(product_id)
+
+            existing_item = existing_items.get(product_id)
+            if existing_item:
+                existing_item.quantity = order_item_data["quantity"]
+            else:
+                db.add(
+                    OrderItem(
+                        order_id=order.id,
+                        product_id=product_id,
+                        quantity=order_item_data["quantity"],
+                    )
+                )
+
+        for product_id, order_item in existing_items.items():
+            if product_id not in expected_product_ids:
+                db.delete(order_item)
+
+    db.flush()
+    if created_count == 0:
+        print("  [跳過] orders 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 orders")
+
+
 def seed():
     db = SessionLocal()
     try:
         print("開始 seed...")
         seed_statuses(db)
         seed_roles(db)
+        seed_order_statuses(db)
         seed_users(db)
         seed_categories(db)
         seed_units(db)
         seed_products(db)
+        seed_orders(db)
         db.commit()
         print("Seed 完成！")
     except Exception as e:

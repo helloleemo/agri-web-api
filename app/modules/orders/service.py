@@ -51,6 +51,8 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 		order_no=order.order_no,
 		user_id=order.user_id,
 		status_code=order.status_code,
+		order_status_code=order.order_status_code,
+		order_status_name=getattr(getattr(order, "order_status", None), "name", None),
 		created_at=order.created_at,
 		updated_at=order.updated_at,
 		items=items,
