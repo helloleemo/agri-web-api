@@ -73,6 +73,34 @@ def create_image(
     return _to_image_response(image)
 
 
+def create_images_batch(
+    db: Session,
+    product_id: uuid.UUID,
+    files: list[UploadFile],
+    primary_index: int | None = None,
+    sort_order_start: int = 0,
+) -> list[ImageResponse]:
+    if not files:
+        raise HTTPException(status_code=400, detail="at least one file is required")
+
+    if primary_index is not None and (primary_index < 0 or primary_index >= len(files)):
+        raise HTTPException(status_code=400, detail="primary_index is out of range")
+
+    if sort_order_start < 0:
+        raise HTTPException(status_code=400, detail="sort_order_start must be non-negative")
+
+    return [
+        create_image(
+            db=db,
+            product_id=product_id,
+            file=file,
+            is_primary=(primary_index == index),
+            sort_order=sort_order_start + index,
+        )
+        for index, file in enumerate(files)
+    ]
+
+
 def update_image(db: Session, image_id: uuid.UUID, image_update: ImageUpdate) -> ImageResponse | None:
     image = crud.update_image(db, image_id, image_update)
     if not image:

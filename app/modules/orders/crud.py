@@ -93,3 +93,10 @@ def update_order(db: Session, order_id: uuid.UUID, order_update: OrderUpdate) ->
 def delete_order(db: Session, order: Order) -> None:
 	order.status_code = StatusCode.DELETED.value
 	db.commit()
+
+
+def cancel_order(db: Session, order: Order, cancel_order_status_code: int) -> Order:
+	order.order_status_code = cancel_order_status_code
+	db.commit()
+	db.refresh(order)
+	return order

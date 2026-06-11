@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.auth.deps import require_roles
 from app.modules.common.errors import raise_not_found_image
 from app.modules.common.messages import ImageMessages
 from app.modules.common.schema import ApiResponse
 from app.modules.common.response import created, deleted, ok
 from app.modules.images.schema import ImageResponse, ImageUpdate
+from app.modules.roles.constants import RoleCode
 
 from app.modules.images import service
 
@@ -28,7 +30,12 @@ def list_images(
     return ok(images, ImageMessages.LIST)
 
 
-@router.post("", response_model=ApiResponse[ImageResponse], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ApiResponse[ImageResponse],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
+)
 def create_image(
     product_id: uuid.UUID = Form(...),
     is_primary: bool = Form(False),
@@ -45,7 +52,35 @@ def create_image(
     )
     return created(created_image, ImageMessages.CREATE)
 
-@router.put("/{image_id}", response_model=ApiResponse[ImageResponse], status_code=status.HTTP_200_OK)
+
+@router.post(
+    "/batch",
+    response_model=ApiResponse[list[ImageResponse]],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
+)
+def create_images_batch(
+    product_id: uuid.UUID = Form(...),
+    files: list[UploadFile] = File(...),
+    primary_index: int | None = Form(None),
+    sort_order_start: int = Form(0),
+    db: Session = Depends(get_db)
+):
+    created_images = service.create_images_batch(
+        db=db,
+        product_id=product_id,
+        files=files,
+        primary_index=primary_index,
+        sort_order_start=sort_order_start,
+    )
+    return created(created_images, ImageMessages.CREATE_BATCH)
+
+@router.put(
+    "/{image_id}",
+    response_model=ApiResponse[ImageResponse],
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
+)
 def update_image(
     image_id: uuid.UUID,
     image_update: ImageUpdate,
@@ -57,7 +92,12 @@ def update_image(
     return ok(updated_image, ImageMessages.UPDATE)
 
 
-@router.delete("/{image_id}", response_model=ApiResponse[dict[str, str]], status_code=status.HTTP_200_OK)
+@router.delete(
+    "/{image_id}",
+    response_model=ApiResponse[dict[str, str]],
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
+)
 def delete_image(
     image_id: uuid.UUID,
     db: Session = Depends(get_db)

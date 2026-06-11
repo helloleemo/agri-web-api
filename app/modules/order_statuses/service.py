@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from app.modules.order_statuses import crud
@@ -15,6 +17,11 @@ def _to_order_status_response(order_status: OrderStatus) -> OrderStatusResponse:
 
 def list_order_statuses(db: Session) -> list[OrderStatusResponse]:
     statuses = crud.get_order_statuses(db)
+    return [_to_order_status_response(status) for status in statuses]
+
+
+def list_order_statuses_by_user_id(db: Session, user_id: uuid.UUID) -> list[OrderStatusResponse]:
+    statuses = crud.get_order_statuses_by_user_id(db, user_id)
     return [_to_order_status_response(status) for status in statuses]
 
 

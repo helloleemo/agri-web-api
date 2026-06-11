@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.modules.common.pagination import Pagination
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
+from app.modules.categories.model import Category
 from app.modules.products.model import Product, ProductUnits
 from app.modules.products.schema import ProductCreate, ProductUpdate
 from app.modules.statuses.constants import StatusCode
@@ -20,6 +21,12 @@ def _validate_units_payload(db: Session, units_payload: list[dict]) -> None:
     missing_ids = [str(unit_id) for unit_id in unit_ids if unit_id not in existing_ids]
     if missing_ids:
         raise_error(ErrorCode.BAD_REQUEST, detail=f"Invalid unit_id(s): {', '.join(missing_ids)}")
+
+
+def _validate_category_id(db: Session, category_id: uuid.UUID) -> None:
+    exists = db.scalar(select(Category.id).where(Category.id == category_id))
+    if exists is None:
+        raise_error(ErrorCode.BAD_REQUEST, detail=f"Invalid category_id: {category_id}")
 
 
 # 'create_product()
@@ -57,6 +64,7 @@ def get_products(db: Session, pagination: Pagination) -> list[Product]:
 def create_product(db:Session, product_create:ProductCreate) -> Product:
     payload = product_create.model_dump(exclude={"units", "category_name", "images"})  # object轉換成可操作的dict
     units_payload = [unit.model_dump() for unit in product_create.units]
+    _validate_category_id(db, product_create.category_id)
     _validate_units_payload(db, units_payload)
 
     new_product = Product(**payload) # **dict展開，會建立新物件
@@ -78,6 +86,9 @@ def update_product(db:Session, product_id:uuid.UUID, product_update:ProductUpdat
 
     payload = product_update.model_dump(exclude_unset=True, exclude={"category_name", "images"}) # 只保留有的欄位(部分更新 且沒有的欄位不會被覆蓋)
     units_payload = payload.pop("units", None)
+
+    if "category_id" in payload:
+        _validate_category_id(db, payload["category_id"])
 
     for field, value in payload.items(): # 改「已存在的物件」
         setattr(product, field, value)

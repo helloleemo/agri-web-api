@@ -82,6 +82,7 @@ def seed_order_statuses(db):
         {"code": OrderStatusCode.PAID.value, "name": "已付款"},
         {"code": OrderStatusCode.PREPARING.value, "name": "備貨中"},
         {"code": OrderStatusCode.SHIPPING.value, "name": "出貨"},
+        {"code": OrderStatusCode.CANCELED.value, "name": "取消訂單"},
     ]
 
     created_count = 0

@@ -31,11 +31,13 @@ class OrderMessages:
     GET = "order fetched"
     CREATE = "order created"
     UPDATE = "order updated"
+    CANCEL = "order canceled"
     DELETE = "order deleted"
 
 class ImageMessages:
     LIST = "images fetched"
     GET = "image fetched"
     CREATE = "image created"
+    CREATE_BATCH = "images created"
     UPDATE = "image updated"
     DELETE = "image deleted"

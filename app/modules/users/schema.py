@@ -20,6 +20,11 @@ class UserUpdate(BaseModel):
     password: str | None = Field(default=None, min_length=8, max_length=200)
     role_code: RoleCode | None = Field(default=None)
 
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=8, max_length=200)
+    new_password: str = Field(..., min_length=8, max_length=200)
+
 class UserOrderItemResponse(BaseModel):
     product_id: uuid.UUID
     product_name: str | None = None

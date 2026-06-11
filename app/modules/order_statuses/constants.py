@@ -8,3 +8,4 @@ class OrderStatusCode(IntEnum):
     PAID = 4
     PREPARING = 5
     SHIPPING = 6
+    CANCELED = 7

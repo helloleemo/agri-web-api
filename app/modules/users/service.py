@@ -3,11 +3,14 @@ import hashlib
 import uuid
 from sqlalchemy.orm import Session
 
+from app.modules.common.error_code import ErrorCode
+from app.modules.common.errors import raise_error
 from app.modules.roles.constants import RoleCode
 from app.modules.statuses.constants import StatusCode
 from app.modules.users import crud
 from app.modules.users.model import User
 from app.modules.users.schema import (
+	ChangePasswordRequest,
 	UserCreate,
 	UserOrderItemResponse,
 	UserOrderResponse,
@@ -87,4 +90,19 @@ def delete_user(db: Session, user_id: uuid.UUID) -> bool:
 		return False
 	
 	crud.delete_user(db, user.id)
+	return True
+
+
+def change_password(db: Session, user_id: uuid.UUID, payload: ChangePasswordRequest) -> bool:
+	user = crud.get_user_by_id(db, user_id)
+	if not user:
+		return False
+
+	if not _verify_password(payload.current_password, user.password_hash):
+		raise_error(ErrorCode.USER_INVALID_CREDENTIALS, detail="Current password is incorrect")
+
+	if payload.current_password == payload.new_password:
+		raise_error(ErrorCode.BAD_REQUEST, detail="New password must be different from current password")
+
+	crud.update_user(db, user_id, UserUpdate(password=payload.new_password))
 	return True

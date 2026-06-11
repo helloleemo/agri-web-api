@@ -97,6 +97,25 @@ def update_order(
 	return ok(order, OrderMessages.UPDATE)
 
 
+@router.patch("/{order_id}/cancel", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)
+def cancel_order(
+	order_id: uuid.UUID,
+	auth: AuthUser = Depends(get_auth_context),
+	db: Session = Depends(get_db),
+):
+	existing = service.get_order_by_id(db, order_id)
+	if not existing:
+		raise_not_found_order(str(order_id))
+
+	_ensure_can_access_order(auth, existing.user_id, "cancel")
+
+	canceled = service.cancel_order(db, order_id)
+	if not canceled:
+		raise_not_found_order(str(order_id))
+
+	return ok(canceled, OrderMessages.CANCEL)
+
+
 @router.delete("/{order_id}", response_model=ApiResponse[dict[str, str]], response_model_exclude_none=True)
 def delete_order(
 	order_id: uuid.UUID,

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.orders import crud
 from app.modules.common.pagination import Pagination
+from app.modules.order_statuses.constants import OrderStatusCode
 from app.modules.orders.model import Order
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
 
@@ -97,3 +98,12 @@ def delete_order(db: Session, order_id: uuid.UUID) -> bool:
 		return False
 	crud.delete_order(db, order)
 	return True
+
+
+def cancel_order(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
+	order = crud.get_order_by_id(db, order_id)
+	if not order:
+		return None
+
+	updated = crud.cancel_order(db, order, OrderStatusCode.CANCELED.value)
+	return _to_order_response(db, updated)
