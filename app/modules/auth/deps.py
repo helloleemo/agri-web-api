@@ -38,6 +38,8 @@ def get_auth_context(
     user = users_crud.get_user_by_id(db, user_uuid)
     if not user:
         raise_error(ErrorCode.UNAUTHORIZED, detail="User not found or inactive")
+    if user.email_verified_at is None:
+        raise_error(ErrorCode.USER_EMAIL_NOT_VERIFIED)
 
     role_code = user.role_code
     role_id = db.scalar(select(Role.id).where(Role.code == role_code))

@@ -112,6 +112,7 @@ def seed_users(db):
             "password_hash": "hashed_password_placeholder",
             "role_code": RoleCode.ROLE_ADMIN.value,
             "status_code": StatusCode.ENABLED.value,
+            "email_verified_at": now,
         },
         {
             "email": "user01@agri.com",
@@ -119,6 +120,7 @@ def seed_users(db):
             "password_hash": "hashed_password_placeholder",
             "role_code": RoleCode.ROLE_MEMBER.value,
             "status_code": StatusCode.ENABLED.value,
+            "email_verified_at": now,
         },
     ]
 
@@ -130,6 +132,7 @@ def seed_users(db):
             user.password_hash = item["password_hash"]
             user.role_code = item["role_code"]
             user.status_code = item["status_code"]
+            user.email_verified_at = item["email_verified_at"]
             continue
 
         db.add(
@@ -140,6 +143,7 @@ def seed_users(db):
                 password_hash=item["password_hash"],
                 role_code=item["role_code"],
                 status_code=item["status_code"],
+                email_verified_at=item["email_verified_at"],
                 created_at=now,
                 updated_at=now,
             )

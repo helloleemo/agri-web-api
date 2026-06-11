@@ -54,6 +54,7 @@ def create_user(db: Session, user_create:UserCreate) -> User:
 	if hasattr(payload.get("role_code"), "value"):
 		payload["role_code"] = payload["role_code"].value
 	payload.setdefault("status_code", StatusCode.ENABLED.value)
+	payload.setdefault("email_verified_at", None)
 	now = datetime.now(timezone.utc)
 	payload.setdefault("created_at", now)
 	payload.setdefault("updated_at", now)
@@ -81,6 +82,12 @@ def update_user(db: Session, user_id: uuid.UUID, user_update: UserUpdate) -> Use
 	for field, value in payload.items():
 		setattr(user, field, value)
 
+	db.commit()
+	db.refresh(user)
+	return user
+
+def mark_email_verified(db: Session, user: User) -> User:
+	user.email_verified_at = datetime.now(timezone.utc)
 	db.commit()
 	db.refresh(user)
 	return user

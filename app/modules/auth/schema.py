@@ -16,6 +16,24 @@ class RegisterRequest(BaseModel):
     role_code: int = Field(..., gt=0)
 
 
+class RegisterResponse(BaseModel):
+    email: str
+    verification_expires_in: int
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+
+
+class ResendVerificationEmailRequest(BaseModel):
+    email: str
+
+
+class VerifyEmailResponse(BaseModel):
+    email: str
+    verified: bool = True
+
+
 class AuthUser(BaseModel):
     id: uuid.UUID
     email: str

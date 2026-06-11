@@ -25,6 +25,7 @@ ERROR_CATALOG: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.USER_NOT_FOUND: ErrorSpec(ErrorCode.USER_NOT_FOUND, 404, "not found", "User not found"),
     ErrorCode.USER_EMAIL_ALREADY_EXISTS: ErrorSpec(ErrorCode.USER_EMAIL_ALREADY_EXISTS, 409, "conflict", "Email already exists"),
     ErrorCode.USER_INVALID_CREDENTIALS: ErrorSpec(ErrorCode.USER_INVALID_CREDENTIALS, 401, "unauthorized", "Invalid email or password"),
+    ErrorCode.USER_EMAIL_NOT_VERIFIED: ErrorSpec(ErrorCode.USER_EMAIL_NOT_VERIFIED, 403, "forbidden", "Email address has not been verified"),
 
     # Products
     ErrorCode.PRODUCT_NOT_FOUND: ErrorSpec(ErrorCode.PRODUCT_NOT_FOUND, 404, "not found", "Product not found"),
