@@ -5,13 +5,16 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.modules.auth.service import send_email
 from app.modules.orders import crud
+from app.modules.order_statuses import crud as order_statuses_crud
 from app.modules.common.pagination import Pagination
 from app.modules.order_statuses.constants import OrderStatusCode
 from app.modules.orders.model import Order
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
 from app.modules.roles.constants import RoleCode
 from app.modules.statuses.constants import StatusCode
+from app.modules.notifications.service import build_order_summary_message, get_line_notification_targets, send_line_message
 from app.modules.users.model import User
 
 
@@ -19,6 +22,52 @@ ORDER_NO_PREFIX = "OC"
 ORDER_NO_SEQUENCE_LENGTH = 6
 GUEST_USER_EMAIL = os.getenv("GUEST_USER_EMAIL", "guest-order@agri.local")
 GUEST_USER_NAME = os.getenv("GUEST_USER_NAME", "guest-order")
+
+
+def _get_order_notification_recipients(db: Session, customer_email: str) -> list[str]:
+	recipients = [customer_email]
+	staff_admin_emails = db.scalars(
+		select(User.email).where(
+			User.role_code.in_([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]),
+			User.status_code == StatusCode.ENABLED.value,
+		)
+	).all()
+	recipients.extend(staff_admin_emails)
+	return list(dict.fromkeys(recipients))
+
+
+def _send_order_status_notification(db: Session, order: Order) -> None:
+	order_status = order_statuses_crud.get_order_status_by_code(db, order.order_status_code)
+	status_name = order_status.name if order_status else str(order.order_status_code)
+	subject = f"Order {order.order_no} status updated to {status_name}"
+	body = (
+		f"Order number: {order.order_no}\n"
+		f"Customer email: {order.customer_email}\n"
+		f"Current status: {status_name} ({order.order_status_code})\n"
+		f"Updated at: {order.updated_at.isoformat() if order.updated_at else ''}\n"
+	)
+
+	for recipient in _get_order_notification_recipients(db, order.customer_email):
+		send_email(recipient, subject, body)
+
+	line_message = build_order_summary_message(
+		order_no=order.order_no,
+		status_name=status_name,
+		order_status_code=order.order_status_code,
+		customer_email=order.customer_email,
+		customer_name=getattr(getattr(order, "user", None), "user_name", None),
+		created_at=order.created_at.isoformat() if order.created_at else "",
+		updated_at=order.updated_at.isoformat() if order.updated_at else "",
+		items=[
+			{
+				"product_name": getattr(getattr(item, "product", None), "name", None),
+				"quantity": item.quantity,
+			}
+			for item in order.items
+		],
+	)
+	for target_id in get_line_notification_targets():
+		send_line_message(target_id, line_message)
 
 
 def get_or_create_guest_user_id(db: Session) -> uuid.UUID:
@@ -124,9 +173,16 @@ def list_orders(
 
 
 def update_order(db: Session, order_id: uuid.UUID, data: OrderUpdate) -> OrderResponse | None:
+	existing_order = crud.get_order_by_id(db, order_id)
+	if not existing_order:
+		return None
+	previous_order_status_code = existing_order.order_status_code
+
 	order = crud.update_order(db, order_id, data)
 	if not order:
 		return None
+	if order.order_status_code != previous_order_status_code:
+		_send_order_status_notification(db, order)
 	return _to_order_response(db, order)
 
 
@@ -143,5 +199,8 @@ def cancel_order(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
 	if not order:
 		return None
 
+	previous_order_status_code = order.order_status_code
 	updated = crud.cancel_order(db, order, OrderStatusCode.CANCELED.value)
+	if updated.order_status_code != previous_order_status_code:
+		_send_order_status_notification(db, updated)
 	return _to_order_response(db, updated)

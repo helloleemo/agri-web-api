@@ -119,22 +119,17 @@ def build_verification_link(token: str) -> str:
     return f"{FRONTEND_VERIFY_URL}{separator}token={token}"
 
 
-def send_verification_email(email: str, token: str) -> None:
-    verification_link = build_verification_link(token)
-
+def send_email(to_email: str, subject: str, body: str) -> None:
     if not SMTP_HOST:
-        logger.warning("SMTP_HOST is not configured. Verification link for %s: %s", email, verification_link)
+        logger.warning("SMTP_HOST is not configured. Email to %s with subject %s was not sent.", to_email, subject)
+        logger.warning("Email body for %s:\n%s", to_email, body)
         return
 
     message = EmailMessage()
-    message["Subject"] = "Verify your email"
+    message["Subject"] = subject
     message["From"] = MAIL_FROM
-    message["To"] = email
-    message.set_content(
-        "Welcome to Agri API.\n\n"
-        f"Please verify your email by opening this link:\n{verification_link}\n\n"
-        f"This link expires in {EMAIL_VERIFICATION_EXPIRE_MINUTES} minutes."
-    )
+    message["To"] = to_email
+    message.set_content(body)
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
         smtp.ehlo()
@@ -144,6 +139,18 @@ def send_verification_email(email: str, token: str) -> None:
         if SMTP_USERNAME:
             smtp.login(SMTP_USERNAME, SMTP_PASSWORD or "")
         smtp.send_message(message)
+
+
+def send_verification_email(email: str, token: str) -> None:
+    verification_link = build_verification_link(token)
+
+    send_email(
+        email,
+        "Verify your email",
+        "Welcome to Agri API.\n\n"
+        f"Please verify your email by opening this link:\n{verification_link}\n\n"
+        f"This link expires in {EMAIL_VERIFICATION_EXPIRE_MINUTES} minutes."
+    )
 
 
 def verify_email_token(db: Session, token: str) -> User:
