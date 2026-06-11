@@ -423,6 +423,7 @@ def seed_orders(db):
     order_definitions = [
         {
             "order_no": "SEED000001",
+            "customer_email": user.email,
             "status_code": StatusCode.ENABLED.value,
             "order_status_code": OrderStatusCode.ORDER_CREATED.value,
             "items": [
@@ -432,6 +433,7 @@ def seed_orders(db):
         },
         {
             "order_no": "SEED000002",
+            "customer_email": user.email,
             "status_code": StatusCode.ENABLED.value,
             "order_status_code": OrderStatusCode.ORDER_CREATED.value,
             "items": [
@@ -447,6 +449,7 @@ def seed_orders(db):
 
         if order:
             order.user_id = user.id
+            order.customer_email = item["customer_email"]
             order.status_code = item["status_code"]
             order.order_status_code = item["order_status_code"]
         else:
@@ -454,6 +457,7 @@ def seed_orders(db):
                 id=uuid.uuid4(),
                 order_no=item["order_no"],
                 user_id=user.id,
+                customer_email=item["customer_email"],
                 status_code=item["status_code"],
                 order_status_code=item["order_status_code"],
             )

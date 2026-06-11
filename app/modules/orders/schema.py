@@ -34,12 +34,13 @@ class OrderItemResponse(BaseModel):
 
 
 class OrderBase(BaseModel):
-	user_id: uuid.UUID
+	customer_email: str = Field(..., max_length=120)
 	status_code: int = Field(default=1, ge=1)
 	order_status_code: int = Field(default=1, ge=1)
 
 
 class OrderCreate(OrderBase):
+	user_id: uuid.UUID | None = None
 	items: list[OrderItemCreate] = Field(..., min_length=1)
 
 
@@ -50,6 +51,7 @@ class OrderUpdate(BaseModel):
 class OrderResponse(OrderBase):
 	id: uuid.UUID
 	order_no: str
+	user_id: uuid.UUID
 	user_name: str | None
 	order_status_name: str | None = None
 	created_at: datetime

@@ -1,4 +1,6 @@
 import uuid
+import os
+from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -8,10 +10,38 @@ from app.modules.common.pagination import Pagination
 from app.modules.order_statuses.constants import OrderStatusCode
 from app.modules.orders.model import Order
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
+from app.modules.roles.constants import RoleCode
+from app.modules.statuses.constants import StatusCode
+from app.modules.users.model import User
 
 
 ORDER_NO_PREFIX = "OC"
 ORDER_NO_SEQUENCE_LENGTH = 6
+GUEST_USER_EMAIL = os.getenv("GUEST_USER_EMAIL", "guest-order@agri.local")
+GUEST_USER_NAME = os.getenv("GUEST_USER_NAME", "guest-order")
+
+
+def get_or_create_guest_user_id(db: Session) -> uuid.UUID:
+	guest_user = db.scalar(select(User).where(User.email == GUEST_USER_EMAIL))
+	if guest_user:
+		return guest_user.id
+
+	now = datetime.now(timezone.utc)
+	guest_user = User(
+		id=uuid.uuid4(),
+		email=GUEST_USER_EMAIL,
+		user_name=GUEST_USER_NAME,
+		password_hash="guest-placeholder",
+		role_code=RoleCode.ROLE_MEMBER.value,
+		status_code=StatusCode.ENABLED.value,
+		email_verified_at=now,
+		created_at=now,
+		updated_at=now,
+	)
+	db.add(guest_user)
+	db.commit()
+	db.refresh(guest_user)
+	return guest_user.id
 
 
 def _generate_order_no(db: Session) -> str:
@@ -50,6 +80,7 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 	return OrderResponse(
 		id=order.id,
 		order_no=order.order_no,
+		customer_email=order.customer_email,
 		user_id=order.user_id,
 		status_code=order.status_code,
 		order_status_code=order.order_status_code,
@@ -69,6 +100,13 @@ def create_order(db: Session, data: OrderCreate) -> OrderResponse:
 
 def get_order_by_id(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
 	order = crud.get_order_by_id(db, order_id)
+	if not order:
+		return None
+	return _to_order_response(db, order)
+
+
+def get_order_by_order_no_and_email(db: Session, order_no: str, customer_email: str) -> OrderResponse | None:
+	order = crud.get_order_by_order_no_and_email(db, order_no, customer_email)
 	if not order:
 		return None
 	return _to_order_response(db, order)

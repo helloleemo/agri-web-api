@@ -70,12 +70,14 @@ def update_user(
 	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
-	if auth.role_code == RoleCode.ROLE_MEMBER.value and auth.id != user_id:
-		raise_error(ErrorCode.FORBIDDEN, detail="Members can only update their own profile")
-	if auth.role_code == RoleCode.ROLE_MEMBER.value and (
-		payload.role_code is not None or payload.password is not None
-	):
-		raise_error(ErrorCode.FORBIDDEN, detail="Members cannot change role or password via this endpoint")
+	if auth.role_code in {RoleCode.ROLE_STAFF.value, RoleCode.ROLE_MEMBER.value} and auth.id != user_id:
+		raise_error(ErrorCode.FORBIDDEN, detail="Staff and members can only update their own profile")
+
+	if payload.role_code is not None and auth.role_code != RoleCode.ROLE_ADMIN.value:
+		raise_error(ErrorCode.FORBIDDEN, detail="Only admin can change role_code")
+
+	if auth.role_code in {RoleCode.ROLE_STAFF.value, RoleCode.ROLE_MEMBER.value} and payload.password is not None:
+		raise_error(ErrorCode.FORBIDDEN, detail="Staff and members cannot change password via this endpoint")
 
 	user = service.update_user(db, user_id, payload)
 	if not user:
@@ -88,7 +90,7 @@ def update_user(
 	"/{user_id}",
 	response_model=ApiResponse[dict[str, str]],
 	response_model_exclude_none=True,
-	dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
+	dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value]))],
 )
 def delete_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	is_deleted = service.delete_user(db, user_id)

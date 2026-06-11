@@ -16,6 +16,7 @@ from app.modules.users import crud as users_crud
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_optional_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 
 def get_auth_context(
@@ -62,3 +63,12 @@ def require_roles(allowed_role_codes: list[int]) -> Callable[..., AuthUser]:
         return auth
 
     return checker
+
+
+def get_optional_auth_context(
+    token: str | None = Depends(oauth2_optional_scheme),
+    db: Session = Depends(get_db),
+) -> AuthUser | None:
+    if not token:
+        return None
+    return get_auth_context(token=token, db=db)

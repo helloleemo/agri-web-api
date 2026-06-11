@@ -1,10 +1,10 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.modules.auth.deps import AuthUser, get_auth_context
+from app.modules.auth.deps import AuthUser, get_auth_context, get_optional_auth_context
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error, raise_not_found_order
 from app.modules.common.messages import OrderMessages
@@ -46,6 +46,27 @@ def list_orders(
 
 
 @router.get(
+		"/query",
+		response_model=ApiResponse[OrderResponse],
+		response_model_exclude_none=True,
+	)
+def query_order_by_no_and_email(
+	order_no: str = Query(..., min_length=1, max_length=20),
+	email: str = Query(..., min_length=3, max_length=120),
+	auth: AuthUser | None = Depends(get_optional_auth_context),
+	db: Session = Depends(get_db),
+):
+	if auth is not None and auth.role_code == RoleCode.ROLE_MEMBER.value and email != auth.email:
+		raise_error(ErrorCode.FORBIDDEN, detail="Members can only query orders with their own email")
+
+	order = service.get_order_by_order_no_and_email(db, order_no=order_no, customer_email=email)
+	if not order:
+		raise_not_found_order(order_no)
+
+	return ok(order, OrderMessages.GET)
+
+
+@router.get(
 		"/{order_id}", 
 		response_model=ApiResponse[OrderResponse], 
 		response_model_exclude_none=True,
@@ -67,11 +88,21 @@ def get_order(
 @router.post("", response_model=ApiResponse[OrderResponse], status_code=status.HTTP_201_CREATED, response_model_exclude_none=True)
 def create_order(
 	payload: OrderCreate,
-	auth: AuthUser = Depends(get_auth_context),
+	auth: AuthUser | None = Depends(get_optional_auth_context),
 	db: Session = Depends(get_db),
 ):
-	if not _can_manage_all_orders(auth) and payload.user_id != auth.id:
-		raise_error(ErrorCode.FORBIDDEN, detail="You can only create your own orders")
+	if auth is None:
+		if payload.user_id is not None:
+			raise_error(ErrorCode.FORBIDDEN, detail="Guest cannot assign user_id")
+		payload = payload.model_copy(update={"user_id": service.get_or_create_guest_user_id(db)})
+	else:
+		if _can_manage_all_orders(auth):
+			resolved_user_id = payload.user_id or auth.id
+		else:
+			resolved_user_id = auth.id
+			if payload.customer_email != auth.email:
+				raise_error(ErrorCode.FORBIDDEN, detail="Members can only create orders with their own email")
+		payload = payload.model_copy(update={"user_id": resolved_user_id})
 
 	order = service.create_order(db, payload)
 	return created(order, OrderMessages.CREATE)
@@ -122,6 +153,9 @@ def delete_order(
 	auth: AuthUser = Depends(get_auth_context),
 	db: Session = Depends(get_db),
 ):
+	if auth.role_code == RoleCode.ROLE_STAFF.value:
+		raise_error(ErrorCode.FORBIDDEN, detail="Staff cannot delete orders")
+
 	existing = service.get_order_by_id(db, order_id)
 	if not existing:
 		raise_not_found_order(str(order_id))

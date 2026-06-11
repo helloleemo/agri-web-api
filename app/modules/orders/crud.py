@@ -26,6 +26,21 @@ def get_order_by_id(db: Session, order_id: uuid.UUID) -> Order | None:
 	return db.scalar(stmt)
 
 
+def get_order_by_order_no_and_email(db: Session, order_no: str, customer_email: str) -> Order | None:
+	stmt = (
+		select(Order)
+		.where(
+			Order.order_no == order_no,
+			Order.customer_email == customer_email,
+			Order.status_code != StatusCode.DELETED.value,
+		)
+		.options(selectinload(Order.user))
+		.options(selectinload(Order.order_status))
+		.options(selectinload(Order.items).selectinload(OrderItem.product))
+	)
+	return db.scalar(stmt)
+
+
 def get_orders(
 	db: Session,
 	pagination: Pagination,

@@ -1,8 +1,9 @@
-import shutil
 import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
+from PIL import Image as PILImage
+from PIL import ImageOps, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.modules.images import crud
@@ -12,6 +13,8 @@ from app.modules.images.schema import ImageCreate, ImageResponse, ImageUpdate
 
 UPLOAD_ROOT = Path("uploads") / "images"
 ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+OUTPUT_IMAGE_SUFFIX = ".webp"
+WEBP_QUALITY = 85
 
 
 def _to_image_response(image: Image) -> ImageResponse:
@@ -30,10 +33,16 @@ def _build_file_url(product_id: uuid.UUID, stored_filename: str) -> str:
     return f"/uploads/images/{product_id}/{stored_filename}"
 
 
-def _save_upload_file(file_path: Path, file: UploadFile) -> None:
+def _save_upload_file_as_webp(file_path: Path, file: UploadFile) -> None:
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with PILImage.open(file.file) as image:
+            image = ImageOps.exif_transpose(image)
+            if image.mode not in {"RGB", "RGBA"}:
+                image = image.convert("RGBA")
+            image.save(file_path, format="WEBP", quality=WEBP_QUALITY, method=6)
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="invalid image file")
 
 
 def list_images(db: Session, product_id: uuid.UUID) -> list[ImageResponse]:
@@ -55,9 +64,9 @@ def create_image(
     if suffix not in ALLOWED_IMAGE_SUFFIXES:
         raise HTTPException(status_code=400, detail="unsupported image file type")
 
-    stored_filename = f"{uuid.uuid4()}{suffix}"
+    stored_filename = f"{uuid.uuid4()}{OUTPUT_IMAGE_SUFFIX}"
     file_path = UPLOAD_ROOT / str(product_id) / stored_filename
-    _save_upload_file(file_path, file)
+    _save_upload_file_as_webp(file_path, file)
 
     image_create = ImageCreate(
         product_id=product_id,
