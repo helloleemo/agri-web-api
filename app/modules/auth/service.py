@@ -24,8 +24,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 EMAIL_VERIFICATION_EXPIRE_MINUTES = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_MINUTES", "1440"))
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret-in-env")
-FRONTEND_VERIFY_URL = os.getenv("FRONTEND_VERIFY_URL", "http://localhost:5173/verify-email")
-MAIL_FROM = os.getenv("MAIL_FROM", "noreply@example.com")
+FRONTEND_VERIFY_URL = os.getenv("FRONTEND_VERIFY_URL", "http://localhost:5173/auth/verify-email")
+MAIL_FROM = os.getenv("MAIL_FROM")
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
@@ -146,10 +146,14 @@ def send_verification_email(email: str, token: str) -> None:
 
     send_email(
         email,
-        "Verify your email",
-        "Welcome to Agri API.\n\n"
-        f"Please verify your email by opening this link:\n{verification_link}\n\n"
-        f"This link expires in {EMAIL_VERIFICATION_EXPIRE_MINUTES} minutes."
+        "農產品交易平台 - 驗證您的電子郵件",
+        "歡迎使用農產品交易平台。\n\n"
+        f"請通過打開此連結來驗證您的電子郵件:\n{verification_link}\n\n"
+        f"如果您無法點擊連結，請將以下網址複製並貼到瀏覽器中:\n{verification_link}\n\n"
+        f"如果您沒有註冊過農產品交易平台，請忽略這封郵件。\n\n"
+        f"若連結失效，您可以在登入頁面點擊「重新發送驗證郵件」來獲取新的驗證連結。\n\n"
+        # f"驗證令牌:\n{token}\n\n"
+        f"此連結在 {EMAIL_VERIFICATION_EXPIRE_MINUTES} 分鐘後過期。"
     )
 
 
