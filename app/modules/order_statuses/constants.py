@@ -9,3 +9,4 @@ class OrderStatusCode(IntEnum):
     PREPARING = 5
     SHIPPING = 6
     CANCELED = 7
+    DELIVERED = 8

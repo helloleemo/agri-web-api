@@ -29,8 +29,11 @@ GUEST_USER_EMAIL = os.getenv("GUEST_USER_EMAIL", "guest-order@agri.local")
 GUEST_USER_NAME = os.getenv("GUEST_USER_NAME", "guest-order")
 
 
-def _get_order_notification_recipients(db: Session, customer_email: str) -> list[str]:
-	recipients = [customer_email]
+def _get_order_notification_recipients(db: Session, order: Order) -> list[str]:
+	primary_orderer_email = order.orderer_email or order.customer_email
+	recipients = [primary_orderer_email]
+	if order.customer_email != primary_orderer_email:
+		recipients.append(order.customer_email)
 	staff_admin_emails = db.scalars(
 		select(User.email).where(
 			User.role_code.in_([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]),
@@ -47,12 +50,13 @@ def _send_order_status_notification(db: Session, order: Order) -> None:
 	subject = f"Order {order.order_no} status updated to {status_name}"
 	body = (
 		f"Order number: {order.order_no}\n"
+		f"Orderer email: {order.orderer_email or order.customer_email}\n"
 		f"Customer email: {order.customer_email}\n"
 		f"Current status: {status_name} ({order.order_status_code})\n"
 		f"Updated at: {order.updated_at.isoformat() if order.updated_at else ''}\n"
 	)
 
-	for recipient in _get_order_notification_recipients(db, order.customer_email):
+	for recipient in _get_order_notification_recipients(db, order):
 		send_email(recipient, subject, body)
 
 	line_message = build_order_summary_message(
@@ -197,6 +201,8 @@ def create_order(db: Session, data: OrderCreate) -> OrderResponse:
 
 	order_no = _generate_order_no(db)
 	order = crud.create_order(db, data, order_no=order_no)
+	if order.order_status_code == OrderStatusCode.ORDER_CREATED.value:
+		_send_order_status_notification(db, order)
 	return _to_order_response(db, order)
 
 
