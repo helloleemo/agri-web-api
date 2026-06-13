@@ -20,6 +20,9 @@ from app.modules.images.model import Image  # noqa: F401
 from app.modules.products.model import Product, ProductUnits
 from app.modules.units.model import Unit
 from app.modules.orders.model import Order, OrderItem
+from app.modules.coupons.model import Coupon
+from app.modules.coupons.constants import CouponDiscountType
+from app.modules.orders.constants import DeliveryMethodCode, PaymentMethodCode
 from app.modules.roles.constants import RoleCode
 from app.modules.order_statuses.constants import OrderStatusCode
 from app.modules.statuses.constants import StatusCode
@@ -205,6 +208,76 @@ def seed_units(db):
         print("  [跳過] units 已對齊")
     else:
         print(f"  [完成] 新增 {created_count} 筆 units")
+
+
+def seed_coupons(db):
+    coupon_definitions = [
+        {
+            "code": "MEKARANG100",
+            "name": "滿千折100",
+            "discount_type": CouponDiscountType.FIXED.value,
+            "discount_value": 100,
+            "min_order_amount": 1000,
+            "max_discount_amount": None,
+            "usage_limit": None,
+            "status_code": StatusCode.ENABLED.value,
+        },
+        {
+            "code": "FRUIT10",
+            "name": "全站9折（上限300）",
+            "discount_type": CouponDiscountType.PERCENT.value,
+            "discount_value": 10,
+            "min_order_amount": 500,
+            "max_discount_amount": 300,
+            "usage_limit": None,
+            "status_code": StatusCode.ENABLED.value,
+        },
+        {
+            "code": "NEW50",
+            "name": "新客折50",
+            "discount_type": CouponDiscountType.FIXED.value,
+            "discount_value": 50,
+            "min_order_amount": 300,
+            "max_discount_amount": None,
+            "usage_limit": 300,
+            "status_code": StatusCode.ENABLED.value,
+        },
+    ]
+
+    created_count = 0
+    for item in coupon_definitions:
+        coupon = db.query(Coupon).filter_by(code=item["code"]).first()
+        if coupon:
+            coupon.name = item["name"]
+            coupon.discount_type = item["discount_type"]
+            coupon.discount_value = item["discount_value"]
+            coupon.min_order_amount = item["min_order_amount"]
+            coupon.max_discount_amount = item["max_discount_amount"]
+            coupon.usage_limit = item["usage_limit"]
+            coupon.status_code = item["status_code"]
+            continue
+
+        db.add(
+            Coupon(
+                id=uuid.uuid4(),
+                code=item["code"],
+                name=item["name"],
+                discount_type=item["discount_type"],
+                discount_value=item["discount_value"],
+                min_order_amount=item["min_order_amount"],
+                max_discount_amount=item["max_discount_amount"],
+                usage_limit=item["usage_limit"],
+                used_count=0,
+                status_code=item["status_code"],
+            )
+        )
+        created_count += 1
+
+    db.flush()
+    if created_count == 0:
+        print("  [跳過] coupons 已對齊")
+    else:
+        print(f"  [完成] 新增 {created_count} 筆 coupons")
 
 
 def seed_products(db):
@@ -412,36 +485,116 @@ def seed_orders(db):
     if not user:
         raise ValueError("缺少 user01，請先執行 seed_users")
 
-    product_names = ["有機蘋果", "有機白米", "有機番茄", "有機燕麥"]
+    product_names = [
+        "有機蘋果",
+        "有機白米",
+        "有機番茄",
+        "有機燕麥",
+        "有機香蕉",
+        "有機地瓜",
+        "有機高麗菜",
+        "有機糙米",
+    ]
     products = db.query(Product).filter(Product.name.in_(product_names)).all()
     product_map = {product.name: product.id for product in products}
+    product_price_map = {product.name: product.price for product in products}
+
+    coupons = db.query(Coupon).all()
+    coupon_map = {coupon.code: coupon for coupon in coupons}
 
     missing_products = set(product_names) - set(product_map.keys())
     if missing_products:
         raise ValueError(f"缺少 product seed: {sorted(missing_products)}")
 
-    order_definitions = [
-        {
-            "order_no": "SEED000001",
-            "customer_email": user.email,
-            "status_code": StatusCode.ENABLED.value,
-            "order_status_code": OrderStatusCode.ORDER_CREATED.value,
-            "items": [
-                {"product_name": "有機蘋果", "quantity": 2},
-                {"product_name": "有機白米", "quantity": 1},
-            ],
-        },
-        {
-            "order_no": "SEED000002",
-            "customer_email": user.email,
-            "status_code": StatusCode.ENABLED.value,
-            "order_status_code": OrderStatusCode.ORDER_CREATED.value,
-            "items": [
-                {"product_name": "有機番茄", "quantity": 3},
-                {"product_name": "有機燕麥", "quantity": 2},
-            ],
-        },
+    required_coupons = {"MEKARANG100", "FRUIT10", "NEW50"}
+    missing_coupons = required_coupons - set(coupon_map.keys())
+    if missing_coupons:
+        raise ValueError(f"缺少 coupon seed: {sorted(missing_coupons)}")
+
+    order_status_cycle = [
+        OrderStatusCode.ORDER_CREATED.value,
+        OrderStatusCode.ORDER_CONFIRMED.value,
+        OrderStatusCode.PENDING_PAYMENT.value,
+        OrderStatusCode.PAID.value,
+        OrderStatusCode.PREPARING.value,
+        OrderStatusCode.SHIPPING.value,
     ]
+    delivery_cycle = [
+        DeliveryMethodCode.HOME_DELIVERY.value,
+        DeliveryMethodCode.OTHER.value,
+    ]
+    payment_cycle = [
+        PaymentMethodCode.BANK_TRANSFER.value,
+        PaymentMethodCode.FACE_TO_FACE.value,
+        PaymentMethodCode.LINE_PAY.value,
+    ]
+
+    # 產生較多測試訂單，方便前後台測試列表/分頁/查詢
+    order_definitions = []
+    total_orders = 24
+    for idx in range(total_orders):
+        seq = idx + 1
+        coupon_code = None
+        if idx % 4 == 0:
+            coupon_code = "MEKARANG100"
+        elif idx % 4 == 1:
+            coupon_code = "FRUIT10"
+        elif idx % 4 == 2:
+            coupon_code = "NEW50"
+
+        item_1 = {
+            "product_name": product_names[idx % len(product_names)],
+            "quantity": (idx % 3) + 1,
+        }
+        item_2 = {
+            "product_name": product_names[(idx + 3) % len(product_names)],
+            "quantity": ((idx + 1) % 4) + 1,
+        }
+
+        subtotal_amount = (
+            product_price_map[item_1["product_name"]] * item_1["quantity"]
+            + product_price_map[item_2["product_name"]] * item_2["quantity"]
+        )
+
+        discount_amount = 0
+        if coupon_code is not None:
+            coupon = coupon_map[coupon_code]
+            min_order_amount = coupon.min_order_amount or 0
+            if subtotal_amount >= min_order_amount:
+                if coupon.discount_type == CouponDiscountType.FIXED.value:
+                    discount_amount = coupon.discount_value
+                elif coupon.discount_type == CouponDiscountType.PERCENT.value:
+                    discount_amount = subtotal_amount * coupon.discount_value // 100
+
+                if coupon.max_discount_amount is not None:
+                    discount_amount = min(discount_amount, coupon.max_discount_amount)
+
+                discount_amount = max(0, min(discount_amount, subtotal_amount))
+            else:
+                coupon_code = None
+
+        total_amount = max(0, subtotal_amount - discount_amount)
+
+        order_definitions.append(
+            {
+                "order_no": f"SEED{seq:06d}",
+                "customer_email": user.email,
+                "customer_name": f"測試顧客{seq:02d}",
+                "address": f"台北市測試路 {seq} 號",
+                "coupon_code": coupon_code,
+                "delivery_method": delivery_cycle[idx % len(delivery_cycle)],
+                "payment_method": payment_cycle[idx % len(payment_cycle)],
+                "orderer_name": f"下單者{seq:02d}",
+                "orderer_phone": f"0900{seq:06d}"[-10:],
+                "orderer_email": user.email,
+                "subtotal_amount": subtotal_amount,
+                "discount_amount": discount_amount,
+                "total_amount": total_amount,
+                "status_code": StatusCode.ENABLED.value,
+                "order_status_code": order_status_cycle[idx % len(order_status_cycle)],
+                "items": [item_1, item_2],
+            }
+        )
 
     created_count = 0
     for item in order_definitions:
@@ -450,6 +603,17 @@ def seed_orders(db):
         if order:
             order.user_id = user.id
             order.customer_email = item["customer_email"]
+            order.customer_name = item["customer_name"]
+            order.address = item["address"]
+            order.coupon_code = item["coupon_code"]
+            order.delivery_method = item["delivery_method"]
+            order.payment_method = item["payment_method"]
+            order.orderer_name = item["orderer_name"]
+            order.orderer_phone = item["orderer_phone"]
+            order.orderer_email = item["orderer_email"]
+            order.subtotal_amount = item["subtotal_amount"]
+            order.discount_amount = item["discount_amount"]
+            order.total_amount = item["total_amount"]
             order.status_code = item["status_code"]
             order.order_status_code = item["order_status_code"]
         else:
@@ -458,6 +622,17 @@ def seed_orders(db):
                 order_no=item["order_no"],
                 user_id=user.id,
                 customer_email=item["customer_email"],
+                customer_name=item["customer_name"],
+                address=item["address"],
+                coupon_code=item["coupon_code"],
+                delivery_method=item["delivery_method"],
+                payment_method=item["payment_method"],
+                orderer_name=item["orderer_name"],
+                orderer_phone=item["orderer_phone"],
+                orderer_email=item["orderer_email"],
+                subtotal_amount=item["subtotal_amount"],
+                discount_amount=item["discount_amount"],
+                total_amount=item["total_amount"],
                 status_code=item["status_code"],
                 order_status_code=item["order_status_code"],
             )
@@ -507,6 +682,7 @@ def seed():
         seed_categories(db)
         seed_units(db)
         seed_products(db)
+        seed_coupons(db)
         seed_orders(db)
         db.commit()
         print("Seed 完成！")

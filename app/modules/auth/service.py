@@ -149,7 +149,7 @@ def send_verification_email(email: str, token: str) -> None:
         "農產品交易平台 - 驗證您的電子郵件",
         "歡迎使用農產品交易平台。\n\n"
         f"請通過打開此連結來驗證您的電子郵件:\n{verification_link}\n\n"
-        f"如果您無法點擊連結，請將以下網址複製並貼到瀏覽器中:\n{verification_link}\n\n"
+        f"如果您無法點擊連結，請將以上網址複製並貼到瀏覽器中。\n\n"
         f"如果您沒有註冊過農產品交易平台，請忽略這封郵件。\n\n"
         f"若連結失效，您可以在登入頁面點擊「重新發送驗證郵件」來獲取新的驗證連結。\n\n"
         # f"驗證令牌:\n{token}\n\n"

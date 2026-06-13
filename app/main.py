@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.db.session import engine
 import app.modules.orders.model  # noqa: F401
 import app.modules.order_statuses.model  # noqa: F401
+import app.modules.coupons.model  # noqa: F401
 import app.modules.images.model  # noqa: F401
 import app.modules.products.model  # noqa: F401
 import app.modules.units.model  # noqa: F401
@@ -21,6 +22,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.users.router import router as users_router
 from app.modules.orders.router import router as orders_router
 from app.modules.order_statuses.router import router as order_statuses_router
+from app.modules.coupons.router import router as coupons_router
 from app.modules.images.router import router as images_router
 from app.modules.categories.router import router as categories_router
 from app.modules.common.exception_handlers import register_exception_handlers
@@ -68,6 +70,7 @@ app.include_router(products_router)
 app.include_router(users_router)
 app.include_router(orders_router)
 app.include_router(order_statuses_router)
+app.include_router(coupons_router)
 app.include_router(images_router)
 app.include_router(categories_router)
 

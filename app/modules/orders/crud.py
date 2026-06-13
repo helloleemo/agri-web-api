@@ -61,7 +61,7 @@ def get_orders(
 
 
 def create_order(db: Session, order_create: OrderCreate, order_no: str) -> Order:
-	payload = order_create.model_dump(exclude={"items"})
+	payload = order_create.model_dump(mode="python", exclude={"items"})
 	payload["order_no"] = order_no
 	if not order_statuses_crud.get_order_status_by_code(db, payload["order_status_code"]):
 		raise_error(ErrorCode.ORDER_INVALID_STATUS, detail=f"Invalid order_status_code: {payload['order_status_code']}")
@@ -85,7 +85,7 @@ def update_order(db: Session, order_id: uuid.UUID, order_update: OrderUpdate) ->
 	if not order:
 		return None
 
-	payload = order_update.model_dump(exclude_unset=True)
+	payload = order_update.model_dump(mode="python", exclude_unset=True)
 	items = payload.pop("items", None)
 	order_status_code = payload.get("order_status_code")
 	if order_status_code is not None and not order_statuses_crud.get_order_status_by_code(db, order_status_code):

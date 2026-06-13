@@ -41,3 +41,11 @@ class ImageMessages:
     CREATE_BATCH = "images created"
     UPDATE = "image updated"
     DELETE = "image deleted"
+
+
+class CouponMessages:
+    LIST = "coupons fetched"
+    GET = "coupon fetched"
+    CREATE = "coupon created"
+    UPDATE = "coupon updated"
+    DELETE = "coupon deleted"
