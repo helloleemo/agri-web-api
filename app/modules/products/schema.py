@@ -27,6 +27,8 @@ class ProductUnitResponse(ProductUnitBase):
 
 
 class ProductBase(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+    
     name: str = Field(..., min_length=1, max_length=120)
     category_id: uuid.UUID = Field(...)
     category_name: str | None = Field(default=None, max_length=60)
@@ -43,6 +45,8 @@ class ProductCreate(ProductBase):
 
 
 class ProductUpdate(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     name: str | None = Field(default=None, min_length=1, max_length=120)
     category_id: uuid.UUID | None = Field(default=None)
     category_name: str | None = Field(default=None, max_length=60)

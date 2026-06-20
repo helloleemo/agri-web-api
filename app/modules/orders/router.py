@@ -12,7 +12,7 @@ from app.modules.common.pagination import Pagination, pagination_dep
 from app.modules.common.response import created, deleted, ok
 from app.modules.common.schema import ApiResponse
 from app.modules.orders import service
-from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
+from app.modules.orders.schema import OrderCreate, OrderAdminNoteUpdate, OrderResponse, OrderUpdate
 from app.modules.roles.constants import RoleCode
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -42,6 +42,8 @@ def list_orders(
 ):
 	user_id = None if _can_manage_all_orders(auth) else auth.id
 	orders = service.list_orders(db, skip=pagination.skip, limit=pagination.limit, user_id=user_id)
+	if not _can_manage_all_orders(auth):
+		orders = [o.model_copy(update={'admin_note': None}) for o in orders]
 	return ok(orders, OrderMessages.LIST)
 
 
@@ -63,7 +65,7 @@ def query_order_by_no_and_email(
 	if not order:
 		raise_not_found_order(order_no)
 
-	return ok(order, OrderMessages.GET)
+	return ok(order.model_copy(update={'admin_note': None}), OrderMessages.GET)
 
 
 @router.get(
@@ -82,6 +84,8 @@ def get_order(
 
 	_ensure_can_access_order(auth, order.user_id, "view")
 
+	if not _can_manage_all_orders(auth):
+		order = order.model_copy(update={'admin_note': None})
 	return ok(order, OrderMessages.GET)
 
 
@@ -106,6 +110,27 @@ def create_order(
 
 	order = service.create_order(db, payload)
 	return created(order, OrderMessages.CREATE)
+
+
+@router.patch("/{order_id}/admin-note", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)
+def update_order_admin_note(
+	order_id: uuid.UUID,
+	payload: OrderAdminNoteUpdate,
+	auth: AuthUser = Depends(get_auth_context),
+	db: Session = Depends(get_db),
+):
+	if not _can_manage_all_orders(auth):
+		raise_error(ErrorCode.FORBIDDEN, detail="Only admin/staff can update admin notes")
+
+	existing = service.get_order_by_id(db, order_id)
+	if not existing:
+		raise_not_found_order(str(order_id))
+
+	updated = service.update_admin_note(db, order_id, payload.admin_note)
+	if not updated:
+		raise_not_found_order(str(order_id))
+
+	return ok(updated, OrderMessages.ADMIN_NOTE_UPDATE)
 
 
 @router.patch("/{order_id}", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)

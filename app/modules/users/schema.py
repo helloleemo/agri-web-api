@@ -33,6 +33,7 @@ class UserOrderItemResponse(BaseModel):
 
 class UserOrderResponse(BaseModel):
     order_id: uuid.UUID
+    order_no: str | None = None
     items: list[UserOrderItemResponse] = Field(default_factory=list)
 
 
@@ -42,6 +43,7 @@ class UserResponse(BaseModel):
     user_name: str
     role_code: RoleCode
     status_code: StatusCode
+    email_verified_at: datetime | None = None
     orders: list[UserOrderResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime

@@ -1,7 +1,7 @@
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.modules.images.model import Image
@@ -39,6 +39,18 @@ def create_image(
     db.commit()
     db.refresh(new_image)
     return new_image
+
+
+def clear_primary_by_product_id(
+    db: Session,
+    product_id: uuid.UUID,
+    exclude_image_id: uuid.UUID | None = None,
+) -> None:
+    stmt = update(Image).where(Image.product_id == product_id, Image.is_primary.is_(True))
+    if exclude_image_id:
+        stmt = stmt.where(Image.id != exclude_image_id)
+
+    db.execute(stmt.values(is_primary=False))
 
 
 def update_image(db: Session, image_id: uuid.UUID, image_update: ImageUpdate) -> Image | None:

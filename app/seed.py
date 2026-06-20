@@ -80,13 +80,13 @@ def seed_roles(db):
 def seed_order_statuses(db):
     order_status_definitions = [
         {"code": OrderStatusCode.ORDER_CREATED.value, "name": "訂單成立"},
-        {"code": OrderStatusCode.ORDER_CONFIRMED.value, "name": "確認訂單"},
-        {"code": OrderStatusCode.PENDING_PAYMENT.value, "name": "待付款"},
-        {"code": OrderStatusCode.PAID.value, "name": "已付款"},
-        {"code": OrderStatusCode.PREPARING.value, "name": "備貨中"},
-        {"code": OrderStatusCode.SHIPPING.value, "name": "已出貨"},
-        {"code": OrderStatusCode.CANCELED.value, "name": "取消訂單"},
+        {"code": OrderStatusCode.ORDER_CONFIRMED_AND_PENDING_PAYMENT.value, "name": "確認訂單待付款"},
+        {"code": OrderStatusCode.PAID_AND_PREPARING.value, "name": "已付款備貨中"},
+        {"code": OrderStatusCode.SHIPPING.value, "name": "配送中"},
         {"code": OrderStatusCode.DELIVERED.value, "name": "已送達"},
+        {"code": OrderStatusCode.CANCELED.value, "name": "取消訂單"},
+        {"code": OrderStatusCode.REFUNDED.value, "name": "已退款"},
+        {"code": OrderStatusCode.OTHER.value, "name": "其他"},
     ]
 
     created_count = 0
@@ -116,6 +116,14 @@ def seed_users(db):
             "user_name": "admin",
             "password_hash": "hashed_password_placeholder",
             "role_code": RoleCode.ROLE_ADMIN.value,
+            "status_code": StatusCode.ENABLED.value,
+            "email_verified_at": now,
+        },
+        {
+            "email": "user00@email.com",
+            "user_name": "user00",
+            "password_hash": "hashed_password_placeholder",
+            "role_code": RoleCode.ROLE_STAFF.value,
             "status_code": StatusCode.ENABLED.value,
             "email_verified_at": now,
         },
@@ -514,11 +522,10 @@ def seed_orders(db):
 
     order_status_cycle = [
         OrderStatusCode.ORDER_CREATED.value,
-        OrderStatusCode.ORDER_CONFIRMED.value,
-        OrderStatusCode.PENDING_PAYMENT.value,
-        OrderStatusCode.PAID.value,
-        OrderStatusCode.PREPARING.value,
+        OrderStatusCode.ORDER_CONFIRMED_AND_PENDING_PAYMENT.value,
+        OrderStatusCode.PAID_AND_PREPARING.value,
         OrderStatusCode.SHIPPING.value,
+        OrderStatusCode.DELIVERED.value,
     ]
     delivery_cycle = [
         DeliveryMethodCode.HOME_DELIVERY.value,

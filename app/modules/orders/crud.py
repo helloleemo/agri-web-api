@@ -115,3 +115,10 @@ def cancel_order(db: Session, order: Order, cancel_order_status_code: int) -> Or
 	db.commit()
 	db.refresh(order)
 	return order
+
+
+def update_admin_note(db: Session, order: Order, note: str | None) -> Order:
+	order.admin_note = note
+	db.commit()
+	db.refresh(order)
+	return order

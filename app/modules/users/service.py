@@ -28,6 +28,7 @@ def _to_user_response(db: Session, user: User) -> UserResponse:
 	orders = [
 		UserOrderResponse(
 			order_id=order.id,
+			order_no=order.order_no,
 			items=[
 				UserOrderItemResponse(
 					product_id=item.product_id,
@@ -46,6 +47,7 @@ def _to_user_response(db: Session, user: User) -> UserResponse:
 		user_name=user.user_name,
 		role_code=RoleCode(user.role_code),
 		status_code=StatusCode(user.status_code),
+		email_verified_at=user.email_verified_at,
 		orders=orders,
 		created_at= user.created_at,
 		updated_at=user.updated_at
@@ -106,3 +108,14 @@ def change_password(db: Session, user_id: uuid.UUID, payload: ChangePasswordRequ
 
 	crud.update_user(db, user_id, UserUpdate(password=payload.new_password))
 	return True
+
+
+def verify_user_email_by_admin(db: Session, user_id: uuid.UUID) -> UserResponse | None:
+	user = crud.get_user_by_id(db, user_id)
+	if not user:
+		return None
+
+	if user.email_verified_at is None:
+		user = crud.mark_email_verified(db, user)
+
+	return _to_user_response(db, user)

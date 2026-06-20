@@ -71,6 +71,10 @@ class OrderUpdate(BaseModel):
 	items: list[OrderItemUpdate] | None = None
 
 
+class OrderAdminNoteUpdate(BaseModel):
+	admin_note: str | None = Field(default=None, max_length=500)
+
+
 class OrderResponse(OrderBase):
 	id: uuid.UUID
 	order_no: str
@@ -79,6 +83,7 @@ class OrderResponse(OrderBase):
 	order_status_name: str | None = None
 	delivery_method_label: str | None = None
 	payment_method_label: str | None = None
+	admin_note: str | None = None
 	created_at: datetime
 	updated_at: datetime
 	items: list[OrderItemResponse]

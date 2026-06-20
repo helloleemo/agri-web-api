@@ -1,6 +1,7 @@
 import uuid
 import os
 from datetime import datetime, timezone
+from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from app.modules.orders import crud
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
 from app.modules.orders.constants import DeliveryMethodCode, PaymentMethodCode
+from app.modules.orders.email_templates import build_admin_order_status_email, build_customer_order_status_email
 from app.modules.order_statuses import crud as order_statuses_crud
 from app.modules.common.pagination import Pagination
 from app.modules.order_statuses.constants import OrderStatusCode
@@ -27,37 +29,38 @@ ORDER_NO_PREFIX = "OC"
 ORDER_NO_SEQUENCE_LENGTH = 6
 GUEST_USER_EMAIL = os.getenv("GUEST_USER_EMAIL", "guest-order@agri.local")
 GUEST_USER_NAME = os.getenv("GUEST_USER_NAME", "guest-order")
+ORDER_ITEM_INVALID_ERROR = cast(ErrorCode, ErrorCode.ORDER_ITEM_INVALID)
 
 
-def _get_order_notification_recipients(db: Session, order: Order) -> list[str]:
+def _get_customer_order_notification_recipients(order: Order):
 	primary_orderer_email = order.orderer_email or order.customer_email
 	recipients = [primary_orderer_email]
 	if order.customer_email != primary_orderer_email:
 		recipients.append(order.customer_email)
+	return list(dict.fromkeys(recipients))
+
+
+def _get_admin_order_notification_recipients(db: Session):
 	staff_admin_emails = db.scalars(
 		select(User.email).where(
 			User.role_code.in_([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]),
 			User.status_code == StatusCode.ENABLED.value,
 		)
 	).all()
-	recipients.extend(staff_admin_emails)
-	return list(dict.fromkeys(recipients))
+	return list(dict.fromkeys(staff_admin_emails))
 
 
 def _send_order_status_notification(db: Session, order: Order) -> None:
 	order_status = order_statuses_crud.get_order_status_by_code(db, order.order_status_code)
 	status_name = order_status.name if order_status else str(order.order_status_code)
-	subject = f"Order {order.order_no} status updated to {status_name}"
-	body = (
-		f"Order number: {order.order_no}\n"
-		f"Orderer email: {order.orderer_email or order.customer_email}\n"
-		f"Customer email: {order.customer_email}\n"
-		f"Current status: {status_name} ({order.order_status_code})\n"
-		f"Updated at: {order.updated_at.isoformat() if order.updated_at else ''}\n"
-	)
+	customer_subject, customer_body = build_customer_order_status_email(order, status_name)
+	admin_subject, admin_body = build_admin_order_status_email(order, status_name)
 
-	for recipient in _get_order_notification_recipients(db, order):
-		send_email(recipient, subject, body)
+	for recipient in _get_customer_order_notification_recipients(order):
+		send_email(recipient, customer_subject, customer_body)
+
+	for recipient in _get_admin_order_notification_recipients(db):
+		send_email(recipient, admin_subject, admin_body)
 
 	line_message = build_order_summary_message(
 		order_no=order.order_no,
@@ -142,8 +145,8 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 		customer_name=order.customer_name,
 		address=order.address,
 		coupon_code=order.coupon_code,
-		delivery_method=order.delivery_method,
-		payment_method=order.payment_method,
+		delivery_method=DeliveryMethodCode(order.delivery_method),
+		payment_method=PaymentMethodCode(order.payment_method),
 		orderer_name=order.orderer_name,
 		orderer_phone=order.orderer_phone,
 		orderer_email=order.orderer_email,
@@ -160,6 +163,7 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 		updated_at=order.updated_at,
 		items=items,
 		user_name=getattr(getattr(order, "user", None), "user_name", None),
+		admin_note=order.admin_note,
 	)
 
 
@@ -169,13 +173,13 @@ def _calculate_order_subtotal(db: Session, data: OrderCreate) -> int:
 	product_price_map = {product.id: product.price for product in products}
 
 	if len(product_price_map) != len(set(product_ids)):
-		raise_error(ErrorCode.ORDER_ITEM_INVALID, detail="Some order items reference missing products")
+		raise_error(ORDER_ITEM_INVALID_ERROR, detail="Some order items reference missing products")
 
 	subtotal = 0
 	for item in data.items:
 		price = product_price_map.get(item.product_id)
 		if price is None:
-			raise_error(ErrorCode.ORDER_ITEM_INVALID, detail=f"Missing product price for product_id: {item.product_id}")
+			raise_error(ORDER_ITEM_INVALID_ERROR, detail=f"Missing product price for product_id: {item.product_id}")
 		subtotal += price * item.quantity
 	return subtotal
 
@@ -262,4 +266,12 @@ def cancel_order(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
 	updated = crud.cancel_order(db, order, OrderStatusCode.CANCELED.value)
 	if updated.order_status_code != previous_order_status_code:
 		_send_order_status_notification(db, updated)
+	return _to_order_response(db, updated)
+
+
+def update_admin_note(db: Session, order_id: uuid.UUID, note: str | None) -> OrderResponse | None:
+	order = crud.get_order_by_id(db, order_id)
+	if not order:
+		return None
+	updated = crud.update_admin_note(db, order, note)
 	return _to_order_response(db, updated)

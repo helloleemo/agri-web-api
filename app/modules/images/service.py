@@ -68,11 +68,18 @@ def create_image(
     file_path = UPLOAD_ROOT / str(product_id) / stored_filename
     _save_upload_file_as_webp(file_path, file)
 
+    existing_images = crud.get_images_by_product_id(db, product_id)
+    should_be_primary = is_primary or not existing_images
+
     image_create = ImageCreate(
         product_id=product_id,
-        is_primary=is_primary,
+        is_primary=should_be_primary,
         sort_order=sort_order,
     )
+
+    if should_be_primary:
+        crud.clear_primary_by_product_id(db, product_id)
+
     image = crud.create_image(
         db=db,
         image_create=image_create,
@@ -98,12 +105,17 @@ def create_images_batch(
     if sort_order_start < 0:
         raise HTTPException(status_code=400, detail="sort_order_start must be non-negative")
 
+    existing_images = crud.get_images_by_product_id(db, product_id)
+    effective_primary_index = primary_index
+    if effective_primary_index is None and not existing_images:
+        effective_primary_index = 0
+
     return [
         create_image(
             db=db,
             product_id=product_id,
             file=file,
-            is_primary=(primary_index == index),
+            is_primary=(effective_primary_index == index),
             sort_order=sort_order_start + index,
         )
         for index, file in enumerate(files)
@@ -111,6 +123,12 @@ def create_images_batch(
 
 
 def update_image(db: Session, image_id: uuid.UUID, image_update: ImageUpdate) -> ImageResponse | None:
+    if image_update.is_primary is True:
+        image = crud.get_image_by_id(db, image_id)
+        if not image:
+            return None
+        crud.clear_primary_by_product_id(db, image.product_id, exclude_image_id=image_id)
+
     image = crud.update_image(db, image_id, image_update)
     if not image:
         return None

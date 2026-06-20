@@ -12,6 +12,26 @@ from app.modules.products.schema import ProductCreate, ProductUpdate
 from app.modules.statuses.constants import StatusCode
 from app.modules.units.model import Unit
 
+
+def _normalize_status_code(value: object) -> int | object:
+    if isinstance(value, StatusCode):
+        return value.value
+
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            return value
+
+        if normalized.isdigit():
+            return int(normalized)
+
+        try:
+            return StatusCode[normalized].value
+        except KeyError:
+            return value
+
+    return value
+
 def _validate_units_payload(db: Session, units_payload: list[dict]) -> None:
     unit_ids = [item["unit_id"] for item in units_payload]
     if len(unit_ids) != len(set(unit_ids)):
@@ -64,6 +84,9 @@ def get_products(db: Session, pagination: Pagination) -> list[Product]:
 def create_product(db:Session, product_create:ProductCreate) -> Product:
     payload = product_create.model_dump(exclude={"units", "category_name", "images"})  # object轉換成可操作的dict
     units_payload = [unit.model_dump() for unit in product_create.units]
+    if "status_code" in payload:
+        payload["status_code"] = _normalize_status_code(payload["status_code"])
+
     _validate_category_id(db, product_create.category_id)
     _validate_units_payload(db, units_payload)
 
@@ -86,6 +109,9 @@ def update_product(db:Session, product_id:uuid.UUID, product_update:ProductUpdat
 
     payload = product_update.model_dump(exclude_unset=True, exclude={"category_name", "images"}) # 只保留有的欄位(部分更新 且沒有的欄位不會被覆蓋)
     units_payload = payload.pop("units", None)
+
+    if "status_code" in payload:
+        payload["status_code"] = _normalize_status_code(payload["status_code"])
 
     if "category_id" in payload:
         _validate_category_id(db, payload["category_id"])

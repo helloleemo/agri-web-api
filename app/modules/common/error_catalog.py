@@ -41,6 +41,10 @@ ERROR_CATALOG: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.CATEGORY_NOT_FOUND: ErrorSpec(ErrorCode.CATEGORY_NOT_FOUND, 404, "not found", "Category not found"),
     ErrorCode.CATEGORY_NAME_ALREADY_EXISTS: ErrorSpec(ErrorCode.CATEGORY_NAME_ALREADY_EXISTS, 409, "conflict", "Category name already exists"),
 
+    # Units
+    ErrorCode.UNIT_NOT_FOUND: ErrorSpec(ErrorCode.UNIT_NOT_FOUND, 404, "not found", "Unit not found"),
+    ErrorCode.UNIT_NAME_ALREADY_EXISTS: ErrorSpec(ErrorCode.UNIT_NAME_ALREADY_EXISTS, 409, "conflict", "Unit name already exists"),
+
     # Images
     ErrorCode.IMAGE_NOT_FOUND: ErrorSpec(ErrorCode.IMAGE_NOT_FOUND, 404, "not found", "Image not found"),
     ErrorCode.IMAGE_INVALID_FORMAT: ErrorSpec(ErrorCode.IMAGE_INVALID_FORMAT, 400, "bad request", "Image format is invalid"),

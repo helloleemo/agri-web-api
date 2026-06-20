@@ -46,10 +46,12 @@ class Order(Base):
     total_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     delivery_method: Mapped[int] = mapped_column(Integer, nullable=False)
     payment_method: Mapped[int] = mapped_column(Integer, nullable=False)
-    
+    memo: Mapped[str] = mapped_column(String(255), nullable=True)
+
     orderer_name: Mapped[str] = mapped_column(String(100), nullable=True)
     orderer_phone: Mapped[str] = mapped_column(String(20), nullable=True)
     orderer_email: Mapped[str] = mapped_column(String(120), nullable=True)
+    admin_note: Mapped[str] = mapped_column(String(500), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now(),onupdate=func.now())

@@ -100,6 +100,20 @@ def delete_user(user_id: uuid.UUID, db: Session = Depends(get_db)):
 	return deleted(str(user_id), UserMessages.DELETE)
 
 
+@router.patch(
+	"/{user_id}/verify-email",
+	response_model=ApiResponse[UserResponse],
+	response_model_exclude_none=True,
+	dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value]))],
+)
+def verify_user_email_by_admin(user_id: uuid.UUID, db: Session = Depends(get_db)):
+	user = service.verify_user_email_by_admin(db, user_id)
+	if not user:
+		raise_not_found_user(str(user_id))
+
+	return ok(user, "user email verified")
+
+
 @router.patch("/{user_id}/password", response_model=ApiResponse[None], response_model_exclude_none=True)
 def change_password(
 	user_id: uuid.UUID,

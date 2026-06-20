@@ -25,6 +25,7 @@ from app.modules.order_statuses.router import router as order_statuses_router
 from app.modules.coupons.router import router as coupons_router
 from app.modules.images.router import router as images_router
 from app.modules.categories.router import router as categories_router
+from app.modules.units.router import router as units_router
 from app.modules.common.exception_handlers import register_exception_handlers
 
 # Configure logging
@@ -62,6 +63,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
 )
 
 register_exception_handlers(app)
@@ -73,6 +75,7 @@ app.include_router(order_statuses_router)
 app.include_router(coupons_router)
 app.include_router(images_router)
 app.include_router(categories_router)
+app.include_router(units_router)
 
 
 @app.get("/health", tags=["Health"])

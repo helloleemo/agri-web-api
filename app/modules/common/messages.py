@@ -26,6 +26,14 @@ class CategoryMessages:
     UPDATE = "category updated"
     DELETE = "category deleted"
 
+
+class UnitMessages:
+    LIST = "units fetched"
+    GET = "unit fetched"
+    CREATE = "unit created"
+    UPDATE = "unit updated"
+    DELETE = "unit deleted"
+
 class OrderMessages:
     LIST = "orders fetched"
     GET = "order fetched"
@@ -33,6 +41,7 @@ class OrderMessages:
     UPDATE = "order updated"
     CANCEL = "order canceled"
     DELETE = "order deleted"
+    ADMIN_NOTE_UPDATE = "admin note updated"
 
 class ImageMessages:
     LIST = "images fetched"
