@@ -1,0 +1,13 @@
+fastapi
+fastapi-cli
+uvicorn
+sqlalchemy
+psycopg[binary]
+python-dotenv
+pydantic
+alembic
+pytest
+httpx
+python-jose[cryptography]
+python-multipart
+Pillow
