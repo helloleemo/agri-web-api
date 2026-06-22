@@ -71,12 +71,11 @@ def create_order(db: Session, order_create: OrderCreate, order_no: str) -> Order
 	db.flush()
 
 	for item_data in order_create.items:
-		item_payload = item_data.model_dump(exclude={"unit"})
+		item_payload = item_data.model_dump(mode="python")
 		new_item = OrderItem(order_id=new_order.id, **item_payload)
 		db.add(new_item)
 
-	db.commit()
-	db.refresh(new_order)
+	db.flush()
 	return new_order
 
 
@@ -95,13 +94,46 @@ def update_order(db: Session, order_id: uuid.UUID, order_update: OrderUpdate) ->
 		setattr(order, field, value)
 
 	if items is not None:
-		order.items = [
-			OrderItem(order_id=order.id, **{k: v for k, v in item.items() if k != "unit"})
-			for item in items
-		]
+		existing_items_by_id = {str(item.id): item for item in order.items}
 
-	db.commit()
-	db.refresh(order)
+		for item in items:
+			item_id = item.get("id")
+			if item_id is None:
+				raise_error(
+					ErrorCode.BAD_REQUEST,
+					detail="Editing order items requires existing item id",
+				)
+
+			target = existing_items_by_id.get(str(item_id))
+			if target is None:
+				raise_error(
+					ErrorCode.BAD_REQUEST,
+					detail=f"Order item not found in order: {item_id}",
+				)
+
+			# Keep product/unit binding stable to avoid breaking inventory ledger references.
+			if target.product_id != item["product_id"]:
+				raise_error(
+					ErrorCode.BAD_REQUEST,
+					detail="Changing product_id is not allowed when editing existing order items",
+				)
+
+			if target.unit_id != item.get("unit_id"):
+				raise_error(
+					ErrorCode.BAD_REQUEST,
+					detail="Changing unit_id is not allowed when editing existing order items",
+				)
+
+			target.unit = item.get("unit")
+			target.quantity = item["quantity"]
+
+		if len(items) != len(order.items):
+			raise_error(
+				ErrorCode.BAD_REQUEST,
+				detail="Adding or removing order items is not supported in this edit flow",
+			)
+
+	db.flush()
 	return order
 
 
@@ -112,8 +144,7 @@ def delete_order(db: Session, order: Order) -> None:
 
 def cancel_order(db: Session, order: Order, cancel_order_status_code: int) -> Order:
 	order.order_status_code = cancel_order_status_code
-	db.commit()
-	db.refresh(order)
+	db.flush()
 	return order
 
 

@@ -11,6 +11,7 @@ from app.modules.orders.constants import DeliveryMethodCode, PaymentMethodCode
 class OrderItemBase(BaseModel):
 	product_id: uuid.UUID
 	unit: str = Field(..., max_length=20)
+	unit_id: uuid.UUID | None = None
 	quantity: int = Field(default=1, ge=1)
 
 
@@ -18,13 +19,14 @@ class OrderItemCreate(OrderItemBase):
 	pass
 
 class OrderItemUpdate(OrderItemBase):
-	pass
+	id: uuid.UUID | None = None
 
 
 class OrderItemResponse(BaseModel):
 	id: uuid.UUID
 	order_id: uuid.UUID
 	product_id: uuid.UUID
+	unit_id: uuid.UUID | None = None
 	quantity: int
 	product_name: str | None = None
 	unit: str | None = Field(default=None, max_length=20)
@@ -47,7 +49,9 @@ class OrderBase(BaseModel):
 	orderer_email: str | None = Field(default=None, max_length=120)
 	subtotal_amount: int = Field(default=0, ge=0)
 	discount_amount: int = Field(default=0, ge=0)
+	shipping_fee: int = Field(default=0, ge=0)
 	total_amount: int = Field(default=0, ge=0)
+	bank_transfer_last5: str | None = Field(default=None, min_length=5, max_length=5, pattern=r"^\d{5}$")
 	status_code: int = Field(default=1, ge=1)
 	order_status_code: int = Field(default=1, ge=1)
 
@@ -66,9 +70,19 @@ class OrderUpdate(BaseModel):
 	orderer_name: str | None = Field(default=None, max_length=100)
 	orderer_phone: str | None = Field(default=None, max_length=20)
 	orderer_email: str | None = Field(default=None, max_length=120)
+	subtotal_amount: int | None = Field(default=None, ge=0)
+	discount_amount: int | None = Field(default=None, ge=0)
+	shipping_fee: int | None = Field(default=None, ge=0)
+	total_amount: int | None = Field(default=None, ge=0)
 	status_code: int | None = Field(default=None, ge=1)
 	order_status_code: int | None = Field(default=None, ge=1)
 	items: list[OrderItemUpdate] | None = None
+	bank_transfer_last5: str | None = Field(default=None, min_length=5, max_length=5, pattern=r"^\d{5}$")
+
+
+class OrderPaymentReferenceUpdate(BaseModel):
+	bank_transfer_last5: str = Field(..., min_length=5, max_length=5, pattern=r"^\d{5}$")
+	customer_email: str | None = Field(default=None, max_length=120)
 
 
 class OrderAdminNoteUpdate(BaseModel):

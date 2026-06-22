@@ -58,3 +58,8 @@ class CouponMessages:
     CREATE = "coupon created"
     UPDATE = "coupon updated"
     DELETE = "coupon deleted"
+
+
+class CartMessages:
+    GET = "cart fetched"
+    SYNC = "cart synced"

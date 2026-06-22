@@ -1,28 +1,35 @@
 import uuid
-from typing import Optional, List
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.common.pagination import Pagination
 from app.modules.images.schema import ImageResponse
 from app.modules.products import crud
+from app.modules.inventories.model import InventoryBalance
 from app.modules.products.model import Product
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUnitResponse, ProductUpdate
 from app.modules.statuses.constants import StatusCode
 
 
 def _to_product_response(db: Session, product: Product) -> ProductResponse:
-    units = sorted(
-        [
+    units: list[ProductUnitResponse] = []
+    for product_unit in product.product_units:
+        available_stock = db.scalar(
+            select(InventoryBalance.actual_stock - InventoryBalance.reserved_stock).where(
+                InventoryBalance.product_id == product.id,
+                InventoryBalance.unit_id == product_unit.unit_id,
+            )
+        )
+        units.append(
             ProductUnitResponse(
                 unit_id=product_unit.unit_id,
                 unit_name=product_unit.unit.name if product_unit.unit else None,
                 price=product_unit.price,
-                stock=product_unit.stock,
+                stock=available_stock if available_stock is not None else product_unit.stock,
             )
-            for product_unit in product.product_units
-        ],
-        key=lambda item: (item.unit_name or "", str(item.unit_id)),
-    )
+        )
+
+    units = sorted(units, key=lambda item: (item.unit_name or "", str(item.unit_id)))
 
     return ProductResponse(
         id=product.id,

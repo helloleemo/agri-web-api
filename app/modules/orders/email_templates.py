@@ -1,7 +1,48 @@
 from app.modules.order_statuses.constants import OrderStatusCode
 
 
-def build_customer_order_status_email(order, status_name):
+class _SafeDict(dict):
+	def __missing__(self, key):
+		return ""
+
+
+def _build_email_context(order, status_name: str) -> dict[str, object]:
+	items = getattr(order, "items", []) or []
+	items_summary = "\n".join(
+		f"- {(item.product_name or item.product_id)} / {(item.unit or '-')} x {item.quantity}"
+		for item in items
+	)
+
+	return {
+		"order_no": order.order_no,
+		"status_name": status_name,
+		"status_code": order.order_status_code,
+		"customer_name": order.customer_name or order.orderer_name or "-",
+		"customer_email": order.customer_email,
+		"orderer_name": order.orderer_name or "-",
+		"orderer_phone": order.orderer_phone or "-",
+		"orderer_email": order.orderer_email or order.customer_email,
+		"address": order.address or "-",
+		"coupon_code": order.coupon_code or "",
+		"delivery_method_label": getattr(order, "delivery_method_label", None) or "",
+		"payment_method_label": getattr(order, "payment_method_label", None) or "",
+		"subtotal_amount": order.subtotal_amount,
+		"discount_amount": order.discount_amount,
+		"shipping_fee": getattr(order, "shipping_fee", 0),
+		"total_amount": order.total_amount,
+		"bank_transfer_last5": order.bank_transfer_last5 or "",
+		"items_count": len(items),
+		"items_summary": items_summary,
+		"created_at": order.created_at.isoformat() if getattr(order, "created_at", None) else "",
+		"updated_at": order.updated_at.isoformat() if order.updated_at else "",
+	}
+
+
+def _render_template(template: str, context: dict[str, object]) -> str:
+	return template.format_map(_SafeDict({k: str(v) for k, v in context.items()}))
+
+
+def build_customer_order_status_email(order, status_name, subject_template: str | None = None, body_template: str | None = None):
 	status_templates = {
 		OrderStatusCode.ORDER_CREATED.value: (
 			f"Mekarang訂購通知！訂單 {order.order_no} 已建立",
@@ -50,6 +91,12 @@ def build_customer_order_status_email(order, status_name):
 		order.order_status_code,
 		(f"訂單 {order.order_no} 狀態更新", "您的訂單狀態已更新。"),
 	)
+	context = _build_email_context(order, status_name)
+	if subject_template:
+		subject = _render_template(subject_template, context)
+	if body_template:
+		return subject, _render_template(body_template, context)
+
 	body = (
 		f"{intro}\n\n"
 		f"訂單編號：{order.order_no}\n"
@@ -61,7 +108,7 @@ def build_customer_order_status_email(order, status_name):
 	return subject, body
 
 
-def build_admin_order_status_email(order, status_name):
+def build_admin_order_status_email(order, status_name, subject_template: str | None = None, body_template: str | None = None):
 	status_templates = {
 		OrderStatusCode.ORDER_CREATED.value: (
 			f"[Admin] 新訂單 {order.order_no}",
@@ -100,6 +147,12 @@ def build_admin_order_status_email(order, status_name):
 		order.order_status_code,
 		(f"[Admin] 訂單 {order.order_no} 狀態更新", "訂單狀態已更新。"),
 	)
+	context = _build_email_context(order, status_name)
+	if subject_template:
+		subject = _render_template(subject_template, context)
+	if body_template:
+		return subject, _render_template(body_template, context)
+
 	body = (
 		f"{intro}\n\n"
 		f"訂單編號：{order.order_no}\n"
@@ -108,5 +161,17 @@ def build_admin_order_status_email(order, status_name):
 		f"顧客：{order.customer_name or '-'} / {order.customer_email}\n"
 		f"總金額：{order.total_amount}\n"
 		f"更新時間：{order.updated_at.isoformat() if order.updated_at else ''}\n"
+	)
+	return subject, body
+
+
+def build_admin_bank_transfer_last5_email(order):
+	subject = f"[Admin] 訂單 {order.order_no} 已提交匯款後五碼"
+	body = (
+		"顧客已提交匯款帳號後五碼，請至後台確認。\n\n"
+		f"訂單編號：{order.order_no}\n"
+		f"顧客：{order.customer_name or order.orderer_name or '-'} / {order.customer_email}\n"
+		f"後五碼：{order.bank_transfer_last5 or '-'}\n"
+		f"目前狀態：{order.order_status_code}\n"
 	)
 	return subject, body

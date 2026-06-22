@@ -14,9 +14,11 @@ import app.modules.coupons.model  # noqa: F401
 import app.modules.images.model  # noqa: F401
 import app.modules.products.model  # noqa: F401
 import app.modules.units.model  # noqa: F401
+import app.modules.inventories.model  # noqa: F401
 import app.modules.roles.model  # noqa: F401
 import app.modules.statuses.model  # noqa: F401
 import app.modules.users.model  # noqa: F401
+import app.modules.carts.model  # noqa: F401
 from app.modules.products.router import router as products_router
 from app.modules.auth.router import router as auth_router 
 from app.modules.users.router import router as users_router
@@ -26,6 +28,8 @@ from app.modules.coupons.router import router as coupons_router
 from app.modules.images.router import router as images_router
 from app.modules.categories.router import router as categories_router
 from app.modules.units.router import router as units_router
+from app.modules.inventories.router import router as inventories_router
+from app.modules.carts.router import router as cart_router
 from app.modules.common.exception_handlers import register_exception_handlers
 
 # Configure logging
@@ -76,6 +80,8 @@ app.include_router(coupons_router)
 app.include_router(images_router)
 app.include_router(categories_router)
 app.include_router(units_router)
+app.include_router(inventories_router)
+app.include_router(cart_router)
 
 
 @app.get("/health", tags=["Health"])

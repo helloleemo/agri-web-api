@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from app.modules.products.model import Product
     from app.modules.order_statuses.model import OrderStatus
     from app.modules.statuses.model import Status
+    from app.modules.units.model import Unit
     from app.modules.users.model import User
 
 
@@ -43,10 +44,12 @@ class Order(Base):
     coupon_code: Mapped[str] = mapped_column(String(50), nullable=True)
     subtotal_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     discount_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    shipping_fee: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     delivery_method: Mapped[int] = mapped_column(Integer, nullable=False)
     payment_method: Mapped[int] = mapped_column(Integer, nullable=False)
     memo: Mapped[str] = mapped_column(String(255), nullable=True)
+    bank_transfer_last5: Mapped[str] = mapped_column(String(5), nullable=True)
 
     orderer_name: Mapped[str] = mapped_column(String(100), nullable=True)
     orderer_phone: Mapped[str] = mapped_column(String(20), nullable=True)
@@ -76,14 +79,17 @@ class OrderItem(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Foreign keys
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    unit_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("units.id"), nullable=True)
 
     # relationships
     order: Mapped["Order"] = relationship("Order", back_populates="items")
     product: Mapped["Product"] = relationship("Product", back_populates="order_items")
+    unit_ref: Mapped["Unit | None"] = relationship("Unit")
 
 

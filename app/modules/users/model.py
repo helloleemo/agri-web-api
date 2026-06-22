@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.modules.orders.model import Order
     from app.modules.roles.model import Role
     from app.modules.statuses.model import Status
+    from app.modules.carts.model import Cart
 
 
 class User(Base):
@@ -44,4 +45,10 @@ class User(Base):
         "Order",
         back_populates="user",
         cascade="all, delete-orphan"
+    )
+    cart: Mapped["Cart | None"] = relationship(
+        "Cart",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
     )

@@ -12,7 +12,13 @@ from app.modules.common.pagination import Pagination, pagination_dep
 from app.modules.common.response import created, deleted, ok
 from app.modules.common.schema import ApiResponse
 from app.modules.orders import service
-from app.modules.orders.schema import OrderCreate, OrderAdminNoteUpdate, OrderResponse, OrderUpdate
+from app.modules.orders.schema import (
+	OrderAdminNoteUpdate,
+	OrderCreate,
+	OrderPaymentReferenceUpdate,
+	OrderResponse,
+	OrderUpdate,
+)
 from app.modules.roles.constants import RoleCode
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -146,11 +152,49 @@ def update_order(
 
 	_ensure_can_access_order(auth, existing.user_id, "update")
 
-	order = service.update_order(db, order_id, payload)
+	order = service.update_order(
+		db,
+		order_id,
+		payload,
+		can_manage_all_orders=_can_manage_all_orders(auth),
+		operator_user_id=auth.id,
+	)
 	if not order:
 		raise_not_found_order(str(order_id))
 
 	return ok(order, OrderMessages.UPDATE)
+
+
+@router.patch("/{order_id}/bank-transfer-last5", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)
+def update_order_bank_transfer_last5(
+	order_id: uuid.UUID,
+	payload: OrderPaymentReferenceUpdate,
+	auth: AuthUser | None = Depends(get_optional_auth_context),
+	db: Session = Depends(get_db),
+):
+	existing = service.get_order_by_id(db, order_id)
+	if not existing:
+		raise_not_found_order(str(order_id))
+
+	if auth is None:
+		if not payload.customer_email or payload.customer_email.lower() != existing.customer_email.lower():
+			raise_error(ErrorCode.FORBIDDEN, detail="Guest must provide matching customer_email")
+	else:
+		_ensure_can_access_order(auth, existing.user_id, "update")
+
+	updated = service.update_bank_transfer_last5(
+		db,
+		order_id,
+		bank_transfer_last5=payload.bank_transfer_last5,
+	)
+	if not updated:
+		raise_not_found_order(str(order_id))
+
+	is_manage_all = _can_manage_all_orders(auth) if auth else False
+	if not is_manage_all:
+		updated = updated.model_copy(update={"admin_note": None})
+
+	return ok(updated, OrderMessages.UPDATE)
 
 
 @router.patch("/{order_id}/cancel", response_model=ApiResponse[OrderResponse], response_model_exclude_none=True)

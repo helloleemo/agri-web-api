@@ -7,6 +7,8 @@ from app.modules.common.pagination import Pagination
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
 from app.modules.categories.model import Category
+from app.modules.inventories.constants import InventoryLedgerAction
+from app.modules.inventories.model import InventoryBalance, InventoryLedger
 from app.modules.products.model import Product, ProductUnits
 from app.modules.products.schema import ProductCreate, ProductUpdate
 from app.modules.statuses.constants import StatusCode
@@ -47,6 +49,55 @@ def _validate_category_id(db: Session, category_id: uuid.UUID) -> None:
     exists = db.scalar(select(Category.id).where(Category.id == category_id))
     if exists is None:
         raise_error(ErrorCode.BAD_REQUEST, detail=f"Invalid category_id: {category_id}")
+
+
+def _ensure_inventory_balance_for_unit(
+    db: Session,
+    *,
+    product_id: uuid.UUID,
+    unit_id: uuid.UUID,
+    initial_stock: int,
+) -> None:
+    existing_balance = db.scalar(
+        select(InventoryBalance).where(
+            InventoryBalance.product_id == product_id,
+            InventoryBalance.unit_id == unit_id,
+        )
+    )
+    if existing_balance is not None:
+        return
+
+    new_balance = InventoryBalance(
+        product_id=product_id,
+        unit_id=unit_id,
+        initial_stock=max(0, initial_stock),
+        actual_stock=max(0, initial_stock),
+        reserved_stock=0,
+        manual_adjustment_stock=0,
+    )
+    db.add(new_balance)
+    db.flush()
+
+    if initial_stock > 0:
+        db.add(
+            InventoryLedger(
+                product_id=product_id,
+                unit_id=unit_id,
+                order_id=None,
+                order_item_id=None,
+                action=InventoryLedgerAction.INITIALIZE.value,
+                quantity=initial_stock,
+                delta_actual=initial_stock,
+                delta_reserved=0,
+                actual_after=new_balance.actual_stock,
+                reserved_after=new_balance.reserved_stock,
+                available_after=new_balance.actual_stock - new_balance.reserved_stock,
+                from_order_status_code=None,
+                to_order_status_code=None,
+                operator_user_id=None,
+                note="Initialized when creating product unit",
+            )
+        )
 
 
 # 'create_product()
@@ -97,6 +148,12 @@ def create_product(db:Session, product_create:ProductCreate) -> Product:
 
     for item in units_payload:
         db.add(ProductUnits(product_id=new_product.id, **item))
+        _ensure_inventory_balance_for_unit(
+            db,
+            product_id=new_product.id,
+            unit_id=item["unit_id"],
+            initial_stock=item.get("stock", 0),
+        )
 
     db.commit()
     return get_product_by_id(db, new_product.id) or new_product
@@ -125,6 +182,12 @@ def update_product(db:Session, product_id:uuid.UUID, product_update:ProductUpdat
         db.flush()
         for item in units_payload:
             product.product_units.append(ProductUnits(**item))
+            _ensure_inventory_balance_for_unit(
+                db,
+                product_id=product.id,
+                unit_id=item["unit_id"],
+                initial_stock=item.get("stock", 0),
+            )
 
     db.commit() # 寫進資料庫
     return get_product_by_id(db, product.id) or product

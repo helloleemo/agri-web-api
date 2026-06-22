@@ -30,3 +30,21 @@ def get_order_statuses_by_user_id(db: Session, user_id: uuid.UUID) -> list[Order
         .order_by(OrderStatus.code.asc())
     )
     return list(db.scalars(stmt).all())
+
+
+def update_order_status_email_templates(
+    db: Session,
+    *,
+    order_status: OrderStatus,
+    customer_email_subject_template: str | None,
+    customer_email_body_template: str | None,
+    admin_email_subject_template: str | None,
+    admin_email_body_template: str | None,
+) -> OrderStatus:
+    order_status.customer_email_subject_template = customer_email_subject_template
+    order_status.customer_email_body_template = customer_email_body_template
+    order_status.admin_email_subject_template = admin_email_subject_template
+    order_status.admin_email_body_template = admin_email_body_template
+    db.commit()
+    db.refresh(order_status)
+    return order_status
