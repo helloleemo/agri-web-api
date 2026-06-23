@@ -6,12 +6,43 @@ class _SafeDict(dict):
 		return ""
 
 
+def _get_item_field(item, field: str, default=None):
+	if isinstance(item, dict):
+		return item.get(field, default)
+	return getattr(item, field, default)
+
+
+def _get_item_product_label(item) -> str:
+	product_name = _get_item_field(item, "product_name")
+	if product_name:
+		return str(product_name)
+
+	product = _get_item_field(item, "product")
+	if product is not None:
+		if isinstance(product, dict):
+			name = product.get("name")
+		else:
+			name = getattr(product, "name", None)
+		if name:
+			return str(name)
+
+	product_id = _get_item_field(item, "product_id", "-")
+	return str(product_id)
+
+
+def _build_items_summary(items) -> str:
+	lines = []
+	for item in items:
+		product_label = _get_item_product_label(item)
+		unit = _get_item_field(item, "unit", "-") or "-"
+		quantity = _get_item_field(item, "quantity", 0)
+		lines.append(f"- {product_label} / {unit} x {quantity}")
+	return "\n".join(lines)
+
+
 def _build_email_context(order, status_name: str) -> dict[str, object]:
 	items = getattr(order, "items", []) or []
-	items_summary = "\n".join(
-		f"- {(item.product_name or item.product_id)} / {(item.unit or '-')} x {item.quantity}"
-		for item in items
-	)
+	items_summary = _build_items_summary(items)
 
 	return {
 		"order_no": order.order_no,
