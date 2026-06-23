@@ -30,6 +30,7 @@ class OrderItemResponse(BaseModel):
 	quantity: int
 	product_name: str | None = None
 	unit: str | None = Field(default=None, max_length=20)
+	unit_price: int | None = Field(default=None, ge=0)
 
 	model_config = ConfigDict(from_attributes=True)
 
@@ -50,6 +51,7 @@ class OrderBase(BaseModel):
 	subtotal_amount: int = Field(default=0, ge=0)
 	discount_amount: int = Field(default=0, ge=0)
 	shipping_fee: int = Field(default=0, ge=0)
+	manual_adjustment_amount: int = Field(default=0)
 	total_amount: int = Field(default=0, ge=0)
 	bank_transfer_last5: str | None = Field(default=None, min_length=5, max_length=5, pattern=r"^\d{5}$")
 	status_code: int = Field(default=1, ge=1)
@@ -73,6 +75,7 @@ class OrderUpdate(BaseModel):
 	subtotal_amount: int | None = Field(default=None, ge=0)
 	discount_amount: int | None = Field(default=None, ge=0)
 	shipping_fee: int | None = Field(default=None, ge=0)
+	manual_adjustment_amount: int | None = None
 	total_amount: int | None = Field(default=None, ge=0)
 	status_code: int | None = Field(default=None, ge=1)
 	order_status_code: int | None = Field(default=None, ge=1)
