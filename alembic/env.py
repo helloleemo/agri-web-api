@@ -37,6 +37,7 @@ import app.modules.units.model
 import app.modules.categories.model
 import app.modules.roles.model
 import app.modules.statuses.model
+import app.modules.site_contents.model
 
 
 target_metadata = Base.metadata
