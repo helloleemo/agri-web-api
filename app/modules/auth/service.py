@@ -122,8 +122,18 @@ def decode_email_verification_token(token: str) -> dict[str, Any] | None:
 
 
 def build_verification_link(token: str) -> str:
-    separator = "&" if "?" in FRONTEND_VERIFY_URL else "?"
-    return f"{FRONTEND_VERIFY_URL}{separator}token={token}"
+    verify_url = FRONTEND_VERIFY_URL.strip()
+
+    # Normalize to hash-router style path expected by frontend app.
+    if "#/" not in verify_url:
+        verify_url = verify_url.rstrip("/")
+        if verify_url.endswith("/auth/verify-email"):
+            verify_url = verify_url[:-len("/auth/verify-email")] + "/#/auth/verify-email"
+        else:
+            verify_url = verify_url + "/#/auth/verify-email"
+
+    separator = "&" if "?" in verify_url else "?"
+    return f"{verify_url}{separator}token={token}"
 
 
 def send_email(to_email: str, subject: str, body: str) -> None:
@@ -218,8 +228,10 @@ def resend_verification_email(db: Session, email: str) -> tuple[User | None, int
     user = users_crud.get_user_by_email(db, email)
     if not user or user.status_code == StatusCode.DELETED.value:
         return None, None
+
+    # Re-sending verification should force verification flow again.
     if user.email_verified_at is not None:
-        return user, None
+        user = users_crud.mark_email_unverified(db, user)
 
     token, expires_in = create_email_verification_token(user)
     send_verification_email(db, user.email, token)
