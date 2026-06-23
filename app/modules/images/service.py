@@ -1,7 +1,10 @@
+import io
 import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
+from PIL import Image as PILImage
+from PIL import ImageOps, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.modules.images import crud
@@ -49,15 +52,25 @@ async def _upload_to_supabase(
 ):
     contents = await file.read()
 
-    object_path = (
-        f"products/{product_id}/{stored_filename}"
-    )
+    try:
+        with PILImage.open(io.BytesIO(contents)) as img:
+            img = ImageOps.exif_transpose(img)
+            if img.mode not in {"RGB", "RGBA"}:
+                img = img.convert("RGBA")
+            buffer = io.BytesIO()
+            img.save(buffer, format="WEBP", quality=WEBP_QUALITY, method=6)
+            buffer.seek(0)
+            webp_contents = buffer.read()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="invalid image file")
+
+    object_path = f"products/{product_id}/{stored_filename}"
 
     supabase_client.storage.from_("products").upload(  # type: ignore[union-attr]
         path=object_path,
-        file=contents,
+        file=webp_contents,
         file_options={
-            "content-type": file.content_type,
+            "content-type": "image/webp",
             "upsert": "false",
         },
     )
@@ -87,10 +100,7 @@ async def create_image(
     if suffix not in ALLOWED_IMAGE_SUFFIXES:
         raise HTTPException(status_code=400, detail="unsupported image file type")
 
-    stored_filename = (
-        f"{uuid.uuid4()}"
-        f"{Path(file.filename).suffix.lower()}"
-    )
+    stored_filename = f"{uuid.uuid4()}.webp"
 
     file_url = await _upload_to_supabase(
         product_id,
