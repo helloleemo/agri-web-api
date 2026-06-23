@@ -2,7 +2,6 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.common.pagination import Pagination
 from app.modules.images.schema import ImageResponse
 from app.modules.products import crud
 from app.modules.inventories.model import InventoryBalance
@@ -67,8 +66,8 @@ def get_product(db: Session, product_id: uuid.UUID) -> ProductResponse | None:
     return _to_product_response(db, product)
 
 
-def list_products(db: Session, skip: int = 0, limit: int = 200) -> "list[ProductResponse]":
-    products = crud.get_products(db, pagination=Pagination(skip=skip, limit=limit))
+def list_products(db: Session) -> "list[ProductResponse]":
+    products = crud.get_products(db)
     return [_to_product_response(db, product) for product in products]
 
 

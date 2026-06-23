@@ -3,7 +3,6 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.common.pagination import Pagination
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
 from app.modules.categories.model import Category
@@ -122,13 +121,11 @@ def get_product_by_id(db:Session, product_id:uuid.UUID) -> Product | None:
     return db.scalar(stmt)
 
 
-def get_products(db: Session, pagination: Pagination) -> list[Product]:
+def get_products(db: Session) -> list[Product]:
     stmt = (
         select(Product)
         .where(Product.status_code != StatusCode.DELETED.value)
         .options(selectinload(Product.product_units).selectinload(ProductUnits.unit))
-        .offset(pagination.skip)
-        .limit(pagination.limit)
     )
     return list(db.scalars(stmt).all())
 

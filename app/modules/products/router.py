@@ -8,7 +8,6 @@ from app.modules.auth.deps import require_roles
 from app.modules.common.errors import raise_not_found_product
 from app.modules.common.messages import ProductMessages
 from app.modules.common.schema import ApiResponse
-from app.modules.common.pagination import Pagination, pagination_dep
 from app.modules.products import service
 from app.modules.products.schema import ProductCreate, ProductResponse, ProductUpdate
 from app.modules.roles.constants import RoleCode
@@ -26,10 +25,9 @@ router = APIRouter(
 
 @router.get("", response_model=ApiResponse[list[ProductResponse]], response_model_exclude_none=True, status_code=status.HTTP_200_OK)
 def list_products(
-    pagination: Pagination = Depends(pagination_dep),
     db: Session = Depends(get_db)
 ):
-    products = service.list_products(db, skip=pagination.skip, limit=pagination.limit)
+    products = service.list_products(db)
     return ok(products, ProductMessages.LIST)
 
 @router.get("/{product_id}", response_model=ApiResponse[ProductResponse], response_model_exclude_none=True, status_code=status.HTTP_200_OK)
