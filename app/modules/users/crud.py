@@ -48,6 +48,13 @@ def get_users(db: Session, skip: int = 0, limit: int = 10) -> list[User]:
 	return list(db.scalars(stmt).all())
 
 def create_user(db: Session, user_create:UserCreate) -> User:
+	# Check if email already exists (including soft-deleted users)
+	existing_user = db.scalar(select(User).where(User.email == user_create.email))
+	if existing_user:
+		from app.modules.common.error_code import ErrorCode
+		from app.modules.common.errors import raise_error
+		raise_error(ErrorCode.CONFLICT, detail="Email already exists")
+	
 	payload = user_create.model_dump()
 	password = payload.pop("password")
 	payload["password_hash"] = _hash_password(password)
