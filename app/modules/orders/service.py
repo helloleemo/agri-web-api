@@ -23,7 +23,7 @@ from app.modules.inventories import service as inventories_service
 from app.modules.order_statuses.constants import OrderStatusCode
 from app.modules.orders.model import Order
 from app.modules.orders.schema import OrderCreate, OrderResponse, OrderUpdate
-from app.modules.products.model import Product
+from app.modules.products.model import Product, ProductUnits
 from app.modules.roles.constants import RoleCode
 from app.modules.statuses.constants import StatusCode
 from app.modules.notifications.service import build_order_summary_message, get_line_notification_targets, send_line_message
@@ -155,8 +155,21 @@ def _generate_order_no(db: Session) -> str:
 
 def _to_order_response(db: Session, order: Order) -> OrderResponse:
 	items = []
+	product_ids = [item.product_id for item in order.items]
+	unit_price_rows = db.execute(
+		select(ProductUnits.product_id, ProductUnits.unit_id, ProductUnits.price).where(
+			ProductUnits.product_id.in_(product_ids)
+		)
+	).all() if product_ids else []
+	unit_price_map = {
+		(row.product_id, row.unit_id): row.price
+		for row in unit_price_rows
+	}
 	for item in order.items:
 		product = getattr(item, "product", None)
+		unit_price = unit_price_map.get((item.product_id, item.unit_id))
+		if unit_price is None:
+			unit_price = getattr(product, "price", None)
 		items.append({
 			"id": item.id,
 			"order_id": item.order_id,
@@ -164,6 +177,7 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 			"unit_id": item.unit_id,
 			"quantity": item.quantity,
 			"unit": item.unit,
+			"unit_price": unit_price,
 			"product_name": getattr(product, "name", None),
 		})
 
@@ -182,6 +196,7 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 		subtotal_amount=order.subtotal_amount,
 		discount_amount=order.discount_amount,
 		shipping_fee=order.shipping_fee,
+		manual_adjustment_amount=order.manual_adjustment_amount,
 		total_amount=order.total_amount,
 		bank_transfer_last5=order.bank_transfer_last5,
 		user_id=order.user_id,
@@ -203,6 +218,11 @@ def _validate_order_items_inventory(db: Session, data: OrderCreate) -> None:
 	from app.modules.inventories import crud as inventories_crud
 	
 	for item in data.items:
+		if item.unit_id is None:
+			raise_error(
+				ErrorCode.BAD_REQUEST,
+				detail=f"Order item requires unit_id for product_id={item.product_id}",
+			)
 		balance = inventories_crud.get_inventory_balance(db, item.product_id, item.unit_id)
 		if balance is None:
 			raise_error(
@@ -215,13 +235,24 @@ def _calculate_order_subtotal(db: Session, data: OrderCreate) -> int:
 	product_ids = [item.product_id for item in data.items]
 	products = db.scalars(select(Product).where(Product.id.in_(product_ids))).all()
 	product_price_map = {product.id: product.price for product in products}
+	unit_price_rows = db.execute(
+		select(ProductUnits.product_id, ProductUnits.unit_id, ProductUnits.price).where(
+			ProductUnits.product_id.in_(product_ids)
+		)
+	).all()
+	unit_price_map = {
+		(row.product_id, row.unit_id): row.price
+		for row in unit_price_rows
+	}
 
 	if len(product_price_map) != len(set(product_ids)):
 		raise_error(ORDER_ITEM_INVALID_ERROR, detail="Some order items reference missing products")
 
 	subtotal = 0
 	for item in data.items:
-		price = product_price_map.get(item.product_id)
+		price = unit_price_map.get((item.product_id, item.unit_id))
+		if price is None:
+			price = product_price_map.get(item.product_id)
 		if price is None:
 			raise_error(ORDER_ITEM_INVALID_ERROR, detail=f"Missing product price for product_id: {item.product_id}")
 		subtotal += price * item.quantity
@@ -235,8 +266,13 @@ def _calculate_shipping_fee(delivery_method: DeliveryMethodCode | int) -> int:
 	return 0
 
 
-def _calculate_total_amount(subtotal_amount: int, discount_amount: int, shipping_fee: int) -> int:
-	return max(0, subtotal_amount - discount_amount + shipping_fee)
+def _calculate_total_amount(
+	subtotal_amount: int,
+	discount_amount: int,
+	shipping_fee: int,
+	manual_adjustment_amount: int,
+) -> int:
+	return max(0, subtotal_amount - discount_amount + shipping_fee + manual_adjustment_amount)
 
 
 def _calculate_subtotal_from_items(
@@ -247,6 +283,15 @@ def _calculate_subtotal_from_items(
 	product_ids = [item["product_id"] for item in items]
 	products = db.scalars(select(Product).where(Product.id.in_(product_ids))).all()
 	product_price_map = {product.id: product.price for product in products}
+	unit_price_rows = db.execute(
+		select(ProductUnits.product_id, ProductUnits.unit_id, ProductUnits.price).where(
+			ProductUnits.product_id.in_(product_ids)
+		)
+	).all()
+	unit_price_map = {
+		(row.product_id, row.unit_id): row.price
+		for row in unit_price_rows
+	}
 
 	if len(product_price_map) != len(set(product_ids)):
 		raise_error(ORDER_ITEM_INVALID_ERROR, detail="Some order items reference missing products")
@@ -254,11 +299,14 @@ def _calculate_subtotal_from_items(
 	subtotal = 0
 	for item in items:
 		product_id = item["product_id"]
+		unit_id = item.get("unit_id")
 		quantity_value = item.get("quantity")
 		if not isinstance(quantity_value, int):
 			raise_error(ORDER_ITEM_INVALID_ERROR, detail=f"Invalid quantity for product_id: {product_id}")
 		quantity = quantity_value
-		price = product_price_map.get(product_id)
+		price = unit_price_map.get((product_id, unit_id))
+		if price is None:
+			price = product_price_map.get(product_id)
 		if price is None:
 			raise_error(ORDER_ITEM_INVALID_ERROR, detail=f"Missing product price for product_id: {product_id}")
 		subtotal += price * quantity
@@ -273,18 +321,25 @@ def create_order(db: Session, data: OrderCreate) -> OrderResponse:
 	discount_amount = 0
 	coupon_code = None
 	shipping_fee = _calculate_shipping_fee(data.delivery_method)
+	manual_adjustment_amount = 0
 
 	if data.coupon_code:
 		coupon, discount_amount = coupons_service.apply_coupon(db, data.coupon_code, subtotal_amount)
 		coupon_code = coupon.code
 
-	total_amount = _calculate_total_amount(subtotal_amount, discount_amount, shipping_fee)
+	total_amount = _calculate_total_amount(
+		subtotal_amount,
+		discount_amount,
+		shipping_fee,
+		manual_adjustment_amount,
+	)
 	data = data.model_copy(
 		update={
 			"coupon_code": coupon_code,
 			"subtotal_amount": subtotal_amount,
 			"discount_amount": discount_amount,
 			"shipping_fee": shipping_fee,
+			"manual_adjustment_amount": manual_adjustment_amount,
 			"total_amount": total_amount,
 		}
 	)
@@ -351,10 +406,24 @@ def update_order(
 					ErrorCode.BAD_REQUEST,
 					detail="Updating order items without changing order_status_code is not allowed after inventory tracking is enabled",
 				)
-		if data.subtotal_amount is not None or data.discount_amount is not None or data.shipping_fee is not None or data.total_amount is not None:
+		if (
+			data.subtotal_amount is not None
+			or data.discount_amount is not None
+			or data.shipping_fee is not None
+			or data.manual_adjustment_amount is not None
+			or data.total_amount is not None
+		):
 			raise_error(ErrorCode.FORBIDDEN, detail="Only admin/staff can adjust order amounts")
 		if data.bank_transfer_last5 is not None:
 			raise_error(ErrorCode.FORBIDDEN, detail="Use payment reference endpoint to submit transfer last-5")
+
+	if can_manage_all_orders and data.subtotal_amount is not None:
+		raise_error(ErrorCode.BAD_REQUEST, detail="subtotal_amount is derived from order items and cannot be edited directly")
+	if can_manage_all_orders and data.total_amount is not None:
+		raise_error(
+			ErrorCode.BAD_REQUEST,
+			detail="total_amount is derived from subtotal_amount, discount_amount, shipping_fee, and manual_adjustment_amount",
+		)
 
 	payload_updates: dict[str, int] = {}
 
@@ -367,22 +436,29 @@ def update_order(
 		payload_updates["shipping_fee"] = _calculate_shipping_fee(data.delivery_method)
 
 	if can_manage_all_orders:
-		if data.subtotal_amount is not None:
-			payload_updates["subtotal_amount"] = data.subtotal_amount
 		if data.discount_amount is not None:
 			payload_updates["discount_amount"] = data.discount_amount
 		if data.shipping_fee is not None:
 			payload_updates["shipping_fee"] = data.shipping_fee
+		if data.manual_adjustment_amount is not None:
+			payload_updates["manual_adjustment_amount"] = data.manual_adjustment_amount
 
-	should_recompute_total = bool(payload_updates) or data.total_amount is not None
+	should_recompute_total = bool(payload_updates)
 	if should_recompute_total:
 		final_subtotal = payload_updates["subtotal_amount"] if "subtotal_amount" in payload_updates else existing_order.subtotal_amount
 		final_discount = payload_updates["discount_amount"] if "discount_amount" in payload_updates else existing_order.discount_amount
 		final_shipping = payload_updates["shipping_fee"] if "shipping_fee" in payload_updates else existing_order.shipping_fee
-		if can_manage_all_orders and data.total_amount is not None:
-			payload_updates["total_amount"] = data.total_amount
-		else:
-			payload_updates["total_amount"] = _calculate_total_amount(final_subtotal, final_discount, final_shipping)
+		final_adjustment = (
+			payload_updates["manual_adjustment_amount"]
+			if "manual_adjustment_amount" in payload_updates
+			else existing_order.manual_adjustment_amount
+		)
+		payload_updates["total_amount"] = _calculate_total_amount(
+			final_subtotal,
+			final_discount,
+			final_shipping,
+			final_adjustment,
+		)
 
 	if payload_updates:
 		data = data.model_copy(update=payload_updates)

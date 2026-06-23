@@ -45,6 +45,7 @@ class Order(Base):
     subtotal_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     discount_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     shipping_fee: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    manual_adjustment_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     delivery_method: Mapped[int] = mapped_column(Integer, nullable=False)
     payment_method: Mapped[int] = mapped_column(Integer, nullable=False)
