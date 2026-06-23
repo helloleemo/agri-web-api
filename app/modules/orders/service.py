@@ -198,6 +198,19 @@ def _to_order_response(db: Session, order: Order) -> OrderResponse:
 	)
 
 
+def _validate_order_items_inventory(db: Session, data: OrderCreate) -> None:
+	"""Validate that all order items have inventory balance records before creating the order."""
+	from app.modules.inventories import crud as inventories_crud
+	
+	for item in data.items:
+		balance = inventories_crud.get_inventory_balance(db, item.product_id, item.unit_id)
+		if balance is None:
+			raise_error(
+				ErrorCode.BAD_REQUEST,
+				detail=f"Inventory balance not found for product_id={item.product_id}, unit_id={item.unit_id}",
+			)
+
+
 def _calculate_order_subtotal(db: Session, data: OrderCreate) -> int:
 	product_ids = [item.product_id for item in data.items]
 	products = db.scalars(select(Product).where(Product.id.in_(product_ids))).all()
@@ -253,6 +266,9 @@ def _calculate_subtotal_from_items(
 
 
 def create_order(db: Session, data: OrderCreate) -> OrderResponse:
+	# Validate inventory balance records exist before proceeding
+	_validate_order_items_inventory(db, data)
+	
 	subtotal_amount = _calculate_order_subtotal(db, data)
 	discount_amount = 0
 	coupon_code = None
