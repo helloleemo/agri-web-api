@@ -99,6 +99,13 @@ def mark_email_verified(db: Session, user: User) -> User:
 	db.refresh(user)
 	return user
 
+
+def mark_email_unverified(db: Session, user: User) -> User:
+	user.email_verified_at = None
+	db.commit()
+	db.refresh(user)
+	return user
+
 def delete_user(db: Session, user_id: uuid.UUID) -> None:
 	user = get_user_by_id(db, user_id)
 	if not user:
