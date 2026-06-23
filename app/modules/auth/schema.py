@@ -47,3 +47,13 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: AuthUser
+
+class AuthEmailTemplateResponse(BaseModel):
+    template_type: int
+    subject_template: str | None = None
+    body_template: str | None = None
+
+
+class AuthEmailTemplateUpdate(BaseModel):
+    subject_template: str | None = None
+    body_template: str | None = None

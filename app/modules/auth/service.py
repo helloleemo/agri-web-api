@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.modules.common.error_code import ErrorCode
 from app.modules.common.errors import raise_error
+from app.modules.auth.constants import AuthEmailTemplateType
+from app.modules.auth import crud as auth_crud
 from app.modules.roles.model import Role
 from app.modules.statuses.constants import StatusCode
 from app.modules.users import crud as users_crud
@@ -31,6 +33,11 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
+
+class _TemplateValues(dict):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
@@ -141,19 +148,42 @@ def send_email(to_email: str, subject: str, body: str) -> None:
         smtp.send_message(message)
 
 
-def send_verification_email(email: str, token: str) -> None:
+DEFAULT_VERIFICATION_EMAIL_SUBJECT = "農產品交易平台 - 驗證您的電子郵件"
+DEFAULT_VERIFICATION_EMAIL_BODY = (
+    "歡迎使用農產品交易平台。\n\n"
+    "請通過打開此連結來驗證您的電子郵件:\n{verification_link}\n\n"
+    "如果您無法點擊連結，請將以上網址複製並貼到瀏覽器中。\n\n"
+    "如果您沒有註冊過農產品交易平台，請忽略這封郵件。\n\n"
+    "若連結失效，您可以在登入頁面點擊「重新發送驗證郵件」來獲取新的驗證連結。\n\n"
+    "此連結在 {expires_minutes} 分鐘後過期。"
+)
+
+
+def send_verification_email(db: Session, email: str, token: str) -> None:
     verification_link = build_verification_link(token)
+    template = auth_crud.get_auth_email_template(db, AuthEmailTemplateType.REGISTRATION_VERIFICATION.value)
+
+    subject_template = template.subject_template if template and template.subject_template is not None else DEFAULT_VERIFICATION_EMAIL_SUBJECT
+    body_template = template.body_template if template and template.body_template is not None else DEFAULT_VERIFICATION_EMAIL_BODY
+
+    template_values = _TemplateValues(
+        verification_link=verification_link,
+        expires_minutes=EMAIL_VERIFICATION_EXPIRE_MINUTES,
+        token=token,
+        email=email,
+    )
+    try:
+        subject = subject_template.format_map(template_values)
+        body = body_template.format_map(template_values)
+    except Exception as exc:
+        logger.warning("Failed to render verification template, fallback to raw template: %s", exc)
+        subject = subject_template
+        body = body_template
 
     send_email(
         email,
-        "農產品交易平台 - 驗證您的電子郵件",
-        "歡迎使用農產品交易平台。\n\n"
-        f"請通過打開此連結來驗證您的電子郵件:\n{verification_link}\n\n"
-        f"如果您無法點擊連結，請將以上網址複製並貼到瀏覽器中。\n\n"
-        f"如果您沒有註冊過農產品交易平台，請忽略這封郵件。\n\n"
-        f"若連結失效，您可以在登入頁面點擊「重新發送驗證郵件」來獲取新的驗證連結。\n\n"
-        # f"驗證令牌:\n{token}\n\n"
-        f"此連結在 {EMAIL_VERIFICATION_EXPIRE_MINUTES} 分鐘後過期。"
+        subject,
+        body,
     )
 
 
@@ -192,8 +222,41 @@ def resend_verification_email(db: Session, email: str) -> tuple[User | None, int
         return user, None
 
     token, expires_in = create_email_verification_token(user)
-    send_verification_email(user.email, token)
+    send_verification_email(db, user.email, token)
     return user, expires_in
 
 
 
+
+
+def get_all_auth_email_templates_response(db: Session) -> list:
+    """Get all authentication email templates."""
+    from app.modules.auth import crud as auth_crud
+    from app.modules.auth.schema import AuthEmailTemplateResponse
+    
+    templates = auth_crud.get_all_auth_email_templates(db)
+    return [
+        AuthEmailTemplateResponse(
+            template_type=t.template_type,
+            subject_template=t.subject_template,
+            body_template=t.body_template,
+        )
+        for t in templates
+    ]
+
+
+def update_auth_email_template_service(
+    db: Session, template_type: int, data
+) -> dict:
+    """Update or create an authentication email template."""
+    from app.modules.auth import crud as auth_crud
+    
+    template = auth_crud.update_auth_email_template(db, template_type, data)
+    if not template:
+        raise_error(ErrorCode.NOT_FOUND, detail="Failed to update email template")
+    
+    return {
+        "template_type": template.template_type,
+        "subject_template": template.subject_template,
+        "body_template": template.body_template,
+    }
