@@ -6,6 +6,8 @@ from app.db.session import get_db
 from app.modules.auth import service
 from app.modules.auth.deps import AuthUser, get_auth_context
 from app.modules.auth.schema import (
+    AuthEmailTemplateResponse,
+    AuthEmailTemplateUpdate,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
@@ -87,7 +89,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         raise_error(ErrorCode.USER_EMAIL_ALREADY_EXISTS)
 
     verification_token, expires_in = service.create_email_verification_token(user)
-    service.send_verification_email(user.email, verification_token)
+    service.send_verification_email(db, user.email, verification_token)
 
     return created(
         RegisterResponse(email=user.email, verification_expires_in=expires_in),
@@ -112,4 +114,56 @@ def resend_verification_email(payload: ResendVerificationEmailRequest, db: Sessi
     return ok(
         RegisterResponse(email=user.email, verification_expires_in=expires_in),
         "verification email sent",
+    )
+
+
+@router.get("/email-templates", response_model=ApiResponse[list[AuthEmailTemplateResponse]], response_model_exclude_none=True)
+def get_email_templates(db: Session = Depends(get_db), auth: AuthUser = Depends(get_auth_context)):
+    """Get all authentication email templates (admin only)."""
+    if auth.role_code not in [1, 2]:  # Admin or Staff
+        raise_error(ErrorCode.FORBIDDEN)
+    
+    from app.modules.auth import crud as auth_crud
+    templates = auth_crud.get_all_auth_email_templates(db)
+    
+    return ok(
+        [
+            {
+                "template_type": t.template_type,
+                "subject_template": t.subject_template,
+                "body_template": t.body_template,
+            }
+            for t in templates
+        ],
+        "email templates fetched",
+    )
+
+
+@router.patch(
+    "/email-templates/{template_type}",
+    response_model=ApiResponse[AuthEmailTemplateResponse],
+    response_model_exclude_none=True,
+)
+def update_email_template(
+    template_type: int,
+    payload: AuthEmailTemplateUpdate,
+    db: Session = Depends(get_db),
+    auth: AuthUser = Depends(get_auth_context),
+):
+    """Update an authentication email template (admin only)."""
+    if auth.role_code not in [1, 2]:  # Admin or Staff
+        raise_error(ErrorCode.FORBIDDEN)
+    
+    from app.modules.auth import crud as auth_crud
+    template = auth_crud.update_auth_email_template(db, template_type, payload)
+    if not template:
+        raise_error(ErrorCode.NOT_FOUND, detail="Failed to update email template")
+    
+    return ok(
+        {
+            "template_type": template.template_type,
+            "subject_template": template.subject_template,
+            "body_template": template.body_template,
+        },
+        "email template updated",
     )
