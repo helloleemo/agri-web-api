@@ -36,14 +36,14 @@ def list_images(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
 )
-def create_image(
+async def create_image(
     product_id: uuid.UUID = Form(...),
     is_primary: bool = Form(False),
     sort_order: int = Form(0),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    created_image = service.create_image(
+    created_image = await service.create_image(
         db=db,
         product_id=product_id,
         file=file,
@@ -59,14 +59,14 @@ def create_image(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_roles([RoleCode.ROLE_ADMIN.value, RoleCode.ROLE_STAFF.value]))],
 )
-def create_images_batch(
+async def create_images_batch(
     product_id: uuid.UUID = Form(...),
     files: list[UploadFile] = File(...),
     primary_index: int | None = Form(None),
     sort_order_start: int = Form(0),
     db: Session = Depends(get_db)
 ):
-    created_images = service.create_images_batch(
+    created_images = await service.create_images_batch(
         db=db,
         product_id=product_id,
         files=files,

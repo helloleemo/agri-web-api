@@ -15,6 +15,7 @@ from app.modules.statuses.model import Status
 from app.modules.order_statuses.model import OrderStatus
 from app.modules.roles.model import Role
 from app.modules.users.model import User
+from app.modules.carts.model import Cart, CartItem  # noqa: F401
 from app.modules.categories.model import Category
 from app.modules.images.model import Image  # noqa: F401
 from app.modules.products.model import Product, ProductUnits

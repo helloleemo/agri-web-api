@@ -2,16 +2,14 @@ import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
-from PIL import Image as PILImage
-from PIL import ImageOps, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.modules.images import crud
 from app.modules.images.model import Image
 from app.modules.images.schema import ImageCreate, ImageResponse, ImageUpdate
-
-
-UPLOAD_ROOT = Path("uploads") / "images"
+import os
+from app.core.supabase import supabase_client
+# UPLOAD_ROOT = Path("uploads") / "images"
 ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 OUTPUT_IMAGE_SUFFIX = ".webp"
 WEBP_QUALITY = 85
@@ -33,24 +31,49 @@ def _build_file_url(product_id: uuid.UUID, stored_filename: str) -> str:
     return f"/uploads/images/{product_id}/{stored_filename}"
 
 
-def _save_upload_file_as_webp(file_path: Path, file: UploadFile) -> None:
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with PILImage.open(file.file) as image:
-            image = ImageOps.exif_transpose(image)
-            if image.mode not in {"RGB", "RGBA"}:
-                image = image.convert("RGBA")
-            image.save(file_path, format="WEBP", quality=WEBP_QUALITY, method=6)
-    except (UnidentifiedImageError, OSError):
-        raise HTTPException(status_code=400, detail="invalid image file")
+# def _save_upload_file_as_webp(file_path: Path, file: UploadFile) -> None:
+#     file_path.parent.mkdir(parents=True, exist_ok=True)
+#     try:
+#         with PILImage.open(file.file) as image:
+#             image = ImageOps.exif_transpose(image)
+#             if image.mode not in {"RGB", "RGBA"}:
+#                 image = image.convert("RGBA")
+#             image.save(file_path, format="WEBP", quality=WEBP_QUALITY, method=6)
+#     except (UnidentifiedImageError, OSError):
+#         raise HTTPException(status_code=400, detail="invalid image file")
 
+async def _upload_to_supabase(
+    product_id: uuid.UUID,
+    file: UploadFile,
+    stored_filename: str,
+):
+    contents = await file.read()
+
+    object_path = (
+        f"products/{product_id}/{stored_filename}"
+    )
+
+    supabase_client.storage.from_("products").upload(  # type: ignore[union-attr]
+        path=object_path,
+        file=contents,
+        file_options={
+            "content-type": file.content_type,
+            "upsert": "false",
+        },
+    )
+
+    return (
+        f"{os.getenv('SUPABASE_URL')}"
+        f"/storage/v1/object/public/"
+        f"products/{object_path}"
+    )
 
 def list_images(db: Session, product_id: uuid.UUID) -> list[ImageResponse]:
     images = crud.get_images_by_product_id(db, product_id)
     return [_to_image_response(image) for image in images]
 
 
-def create_image(
+async def create_image(
     db: Session,
     product_id: uuid.UUID,
     file: UploadFile,
@@ -64,9 +87,16 @@ def create_image(
     if suffix not in ALLOWED_IMAGE_SUFFIXES:
         raise HTTPException(status_code=400, detail="unsupported image file type")
 
-    stored_filename = f"{uuid.uuid4()}{OUTPUT_IMAGE_SUFFIX}"
-    file_path = UPLOAD_ROOT / str(product_id) / stored_filename
-    _save_upload_file_as_webp(file_path, file)
+    stored_filename = (
+        f"{uuid.uuid4()}"
+        f"{Path(file.filename).suffix.lower()}"
+    )
+
+    file_url = await _upload_to_supabase(
+        product_id,
+        file,
+        stored_filename,
+    )
 
     existing_images = crud.get_images_by_product_id(db, product_id)
     should_be_primary = is_primary or not existing_images
@@ -84,12 +114,13 @@ def create_image(
         db=db,
         image_create=image_create,
         stored_filename=stored_filename,
-        file_url=_build_file_url(product_id, stored_filename),
+        # file_url=_build_file_url(product_id, stored_filename),
+        file_url=file_url,
     )
     return _to_image_response(image)
 
 
-def create_images_batch(
+async def create_images_batch(
     db: Session,
     product_id: uuid.UUID,
     files: list[UploadFile],
@@ -110,16 +141,17 @@ def create_images_batch(
     if effective_primary_index is None and not existing_images:
         effective_primary_index = 0
 
-    return [
-        create_image(
+    results = []
+    for index, file in enumerate(files):
+        result = await create_image(
             db=db,
             product_id=product_id,
             file=file,
             is_primary=(effective_primary_index == index),
             sort_order=sort_order_start + index,
         )
-        for index, file in enumerate(files)
-    ]
+        results.append(result)
+    return results
 
 
 def update_image(db: Session, image_id: uuid.UUID, image_update: ImageUpdate) -> ImageResponse | None:
@@ -140,11 +172,14 @@ def delete_image(db: Session, image_id: uuid.UUID) -> bool:
     if not image:
         return False
 
-    file_path = Path.cwd() / image.file_url.lstrip("/")
-    if file_path.exists():
-        try:
-            file_path.unlink()
-        except OSError:
-            pass
+    try:
+        object_path = (
+            f"products/"
+            f"{image.product_id}/"
+            f"{image.stored_filename}"
+        )
+        supabase_client.storage.from_("products").remove([object_path])  # type: ignore[union-attr]
+    except Exception:
+        pass
 
     return crud.delete_image_by_id(db, image_id)
