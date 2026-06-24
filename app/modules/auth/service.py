@@ -28,8 +28,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 EMAIL_VERIFICATION_EXPIRE_MINUTES = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_MINUTES", "1440"))
 PASSWORD_RESET_EXPIRE_MINUTES = int(os.getenv("PASSWORD_RESET_EXPIRE_MINUTES", "30"))
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret-in-env")
-FRONTEND_VERIFY_URL = os.getenv("FRONTEND_VERIFY_URL", "http://localhost:5173/auth/verify-email")
-FRONTEND_RESET_PASSWORD_URL = os.getenv("FRONTEND_RESET_PASSWORD_URL", "http://localhost:5173/auth/reset-password")
+FRONTEND_VERIFY_URL = os.getenv("FRONTEND_VERIFY_URL", "https://agri-web-krbu.onrender.com/#/auth/verify-email")
+FRONTEND_RESET_PASSWORD_URL = os.getenv(
+    "FRONTEND_RESET_PASSWORD_URL",
+    "https://agri-web-krbu.onrender.com/#/auth/reset-password",
+)
 MAIL_FROM = os.getenv("MAIL_FROM")
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
