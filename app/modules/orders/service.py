@@ -44,6 +44,18 @@ RESERVED_STATUS_CODES = {
 }
 
 
+def _validate_order_status_transition(previous_status_code: int, new_status_code: int) -> None:
+	# Once inventory is committed on delivered, reverting would require explicit restock logic.
+	if (
+		previous_status_code == OrderStatusCode.DELIVERED.value
+		and new_status_code != OrderStatusCode.DELIVERED.value
+	):
+		raise_error(
+			ErrorCode.ORDER_INVALID_STATUS,
+			detail="Delivered orders cannot be moved back to previous statuses",
+		)
+
+
 def _get_customer_order_notification_recipients(order: Order):
 	primary_orderer_email = order.orderer_email or order.customer_email
 	recipients = [primary_orderer_email]
@@ -398,6 +410,7 @@ def update_order(
 		return None
 	previous_order_status_code = existing_order.order_status_code
 	target_order_status_code = data.order_status_code or previous_order_status_code
+	_validate_order_status_transition(previous_order_status_code, target_order_status_code)
 
 	if not can_manage_all_orders:
 		if data.items is not None:
@@ -543,6 +556,7 @@ def cancel_order(db: Session, order_id: uuid.UUID) -> OrderResponse | None:
 		return None
 
 	previous_order_status_code = order.order_status_code
+	_validate_order_status_transition(previous_order_status_code, OrderStatusCode.CANCELED.value)
 	updated = crud.cancel_order(db, order, OrderStatusCode.CANCELED.value)
 	inventories_service.apply_order_status_transition(
 		db,
