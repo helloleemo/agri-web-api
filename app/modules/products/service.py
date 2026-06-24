@@ -37,6 +37,7 @@ def _to_product_response(db: Session, product: Product) -> ProductResponse:
         category_name=product.category.name if product.category else None,
         origin=product.origin,
         description=product.description,
+        low_stock_threshold=product.low_stock_threshold,
         units=units,
         # image=product.image,
         # image_group=product.image_group,
