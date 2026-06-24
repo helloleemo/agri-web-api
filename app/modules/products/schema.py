@@ -34,6 +34,7 @@ class ProductBase(BaseModel):
     category_name: str | None = Field(default=None, max_length=60)
     origin: str | None = Field(default=None, max_length=120)
     description: str | None = None
+    low_stock_threshold: int | None = Field(default=None, ge=0)
     images: list[ImageResponse] | None = None
     # image: str | None = Field(default=None, max_length=500)
     # image_group: list[str] | None = Field(default=None)
@@ -52,6 +53,7 @@ class ProductUpdate(BaseModel):
     category_name: str | None = Field(default=None, max_length=60)
     origin: str | None = Field(default=None, max_length=120)
     description: str | None = None
+    low_stock_threshold: int | None = Field(default=None, ge=0)
     images: list[ImageResponse] | None = None
     # image: str | None = Field(default=None, max_length=500)
     # image_group: list[str] | None = Field(default=None)

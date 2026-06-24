@@ -31,6 +31,7 @@ class Product(Base):
     __table_args__ = (
         CheckConstraint("price >= 0", name="ck_products_price_non_negative"),
         CheckConstraint("stock >= 0", name="ck_products_stock_non_negative"),
+        CheckConstraint("low_stock_threshold >= 0", name="ck_products_low_stock_threshold_non_negative"),
         Index("idx_products_name", "name"),
         Index("idx_products_category_id", "category_id"),
         Index("idx_products_status_code", "status_code"),
@@ -44,6 +45,7 @@ class Product(Base):
     # unit: Mapped[str] = mapped_column(String(20), nullable=False, default="kg")
     price: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    low_stock_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # image:Mapped[str | None] = mapped_column(String(300), nullable=True)
     # image_group:Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
