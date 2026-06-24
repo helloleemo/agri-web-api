@@ -18,6 +18,7 @@ from app.modules.auth import crud as auth_crud
 from app.modules.roles.model import Role
 from app.modules.statuses.constants import StatusCode
 from app.modules.users import crud as users_crud
+from app.modules.users.schema import UserUpdate
 from app.modules.users.model import User
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,10 @@ logger = logging.getLogger(__name__)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 EMAIL_VERIFICATION_EXPIRE_MINUTES = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_MINUTES", "1440"))
+PASSWORD_RESET_EXPIRE_MINUTES = int(os.getenv("PASSWORD_RESET_EXPIRE_MINUTES", "30"))
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret-in-env")
 FRONTEND_VERIFY_URL = os.getenv("FRONTEND_VERIFY_URL", "http://localhost:5173/auth/verify-email")
+FRONTEND_RESET_PASSWORD_URL = os.getenv("FRONTEND_RESET_PASSWORD_URL", "http://localhost:5173/auth/reset-password")
 MAIL_FROM = os.getenv("MAIL_FROM")
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -168,6 +171,15 @@ DEFAULT_VERIFICATION_EMAIL_BODY = (
     "此連結在 {expires_minutes} 分鐘後過期。"
 )
 
+DEFAULT_PASSWORD_RESET_EMAIL_SUBJECT = "農產品交易平台 - 重設您的密碼"
+DEFAULT_PASSWORD_RESET_EMAIL_BODY = (
+    "您好，\n\n"
+    "我們收到一筆重設密碼請求。請點擊以下連結設定新密碼：\n{reset_link}\n\n"
+    "若您無法直接點擊連結，請將上述網址複製到瀏覽器開啟。\n\n"
+    "如果這不是您本人操作，請忽略此信件。\n\n"
+    "此連結在 {expires_minutes} 分鐘後過期。"
+)
+
 
 def send_verification_email(db: Session, email: str, token: str) -> None:
     verification_link = build_verification_link(token)
@@ -236,6 +248,99 @@ def resend_verification_email(db: Session, email: str) -> tuple[User | None, int
     token, expires_in = create_email_verification_token(user)
     send_verification_email(db, user.email, token)
     return user, expires_in
+
+
+def create_password_reset_token(user: User) -> tuple[str, int]:
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_EXPIRE_MINUTES)
+    payload = {
+        "sub": str(user.id),
+        "email": user.email,
+        "type": "reset_password",
+        "exp": expires_at,
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    expires_in = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+    return token, expires_in
+
+
+def decode_password_reset_token(token: str) -> dict[str, Any] | None:
+    payload = decode_access_token(token)
+    if not payload or payload.get("type") != "reset_password":
+        return None
+    return payload
+
+
+def build_password_reset_link(token: str) -> str:
+    reset_url = FRONTEND_RESET_PASSWORD_URL.strip()
+
+    if "#/" not in reset_url:
+        reset_url = reset_url.rstrip("/")
+        if reset_url.endswith("/auth/reset-password"):
+            reset_url = reset_url[:-len("/auth/reset-password")] + "/#/auth/reset-password"
+        else:
+            reset_url = reset_url + "/#/auth/reset-password"
+
+    separator = "&" if "?" in reset_url else "?"
+    return f"{reset_url}{separator}token={token}"
+
+
+def send_password_reset_email(db: Session, email: str, token: str) -> None:
+    reset_link = build_password_reset_link(token)
+    template = auth_crud.get_auth_email_template(db, AuthEmailTemplateType.PASSWORD_RESET.value)
+
+    subject_template = template.subject_template if template and template.subject_template is not None else DEFAULT_PASSWORD_RESET_EMAIL_SUBJECT
+    body_template = template.body_template if template and template.body_template is not None else DEFAULT_PASSWORD_RESET_EMAIL_BODY
+
+    template_values = _TemplateValues(
+        reset_link=reset_link,
+        expires_minutes=PASSWORD_RESET_EXPIRE_MINUTES,
+        token=token,
+        email=email,
+    )
+
+    try:
+        subject = subject_template.format_map(template_values)
+        body = body_template.format_map(template_values)
+    except Exception as exc:
+        logger.warning("Failed to render password reset template, fallback to raw template: %s", exc)
+        subject = subject_template
+        body = body_template
+
+    send_email(email, subject, body)
+
+
+def request_password_reset(db: Session, email: str) -> None:
+    user = users_crud.get_user_by_email(db, email)
+    if not user or user.status_code == StatusCode.DELETED.value:
+        return
+
+    token, _ = create_password_reset_token(user)
+    send_password_reset_email(db, user.email, token)
+
+
+def reset_password_with_token(db: Session, token: str, new_password: str) -> User:
+    payload = decode_password_reset_token(token)
+    if not payload:
+        raise_error(ErrorCode.UNAUTHORIZED, detail="Invalid or expired password reset token")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise_error(ErrorCode.UNAUTHORIZED, detail="Token subject is invalid")
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise_error(ErrorCode.UNAUTHORIZED, detail="Token subject is invalid")
+
+    user = users_crud.get_user_by_id(db, user_uuid)
+    if not user:
+        raise_error(ErrorCode.USER_NOT_FOUND)
+
+    if user.email != payload.get("email"):
+        raise_error(ErrorCode.UNAUTHORIZED, detail="Token email does not match user")
+
+    users_crud.update_user(db, user_uuid, UserUpdate(password=new_password))
+    return user
 
 
 

@@ -8,10 +8,12 @@ from app.modules.auth.deps import AuthUser, get_auth_context
 from app.modules.auth.schema import (
     AuthEmailTemplateResponse,
     AuthEmailTemplateUpdate,
+    ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
     RegisterResponse,
+    ResetPasswordRequest,
     ResendVerificationEmailRequest,
     VerifyEmailRequest,
     VerifyEmailResponse,
@@ -115,6 +117,18 @@ def resend_verification_email(payload: ResendVerificationEmailRequest, db: Sessi
         RegisterResponse(email=user.email, verification_expires_in=expires_in),
         "verification email sent",
     )
+
+
+@router.post("/forgot-password", response_model=ApiResponse[None], response_model_exclude_none=True)
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    service.request_password_reset(db, payload.email)
+    return ok(None, "If the email exists, a password reset email has been sent")
+
+
+@router.post("/reset-password", response_model=ApiResponse[None], response_model_exclude_none=True)
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    service.reset_password_with_token(db, payload.token, payload.new_password)
+    return ok(None, "password reset success")
 
 
 @router.get("/email-templates", response_model=ApiResponse[list[AuthEmailTemplateResponse]], response_model_exclude_none=True)
